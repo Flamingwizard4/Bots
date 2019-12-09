@@ -1,2 +1,2 @@
 # Bots
-Collection of utility programs to run various chores
+Collection of ideally automated utility programs to run various chores/perform auxilary tasks.
