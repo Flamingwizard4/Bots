@@ -1,4 +1,5 @@
 ##SearchBot e.g. SearchBot.py www.youtube.com or SearchBot.py engineering -r 5 -n 50
+#A program to facilitate research, meaning Google search + web scraping + content compilation + LP summarization
 # TODO:
 # receive query from command line
 # check query for URL and prompt navigation
@@ -96,4 +97,4 @@ with open(contentpath, "r") as creader:
     for line in creader:
         print(line)
         
-os.system("python3 SearchBot coding -r 10 -n 100 > search.txt")
+os.system("python3 SearchBot.py coding -r 10 -n 100")
