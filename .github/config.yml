@@ -40,9 +40,10 @@ requestInfoOn:
 requestInfoUserstoExclude:
   - Flamingwizard4
   
-#todo auto issue creator
-#format:
+#TODO auto issue creator, format:
+#/**
 #@todo Title
 #@body Body
+#*/
 todo:
   keyword: "@makeAnIssue"
