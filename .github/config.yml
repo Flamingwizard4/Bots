@@ -39,6 +39,10 @@ requestInfoOn:
 # keys must be GitHub usernames
 requestInfoUserstoExclude:
   - Flamingwizard4
-
+  
+#todo auto issue creator
+#format:
+#@todo Title
+#@body Body
 todo:
   keyword: "@makeAnIssue"
