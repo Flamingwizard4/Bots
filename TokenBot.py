@@ -98,8 +98,6 @@ starters = "(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|Howeve
 acronyms = "([A-Z][.][A-Z][.](?:[A-Z][.])?)"
 websites = "[.](com|net|org|io|gov|me|edu|us|tech|info)"
 digits = "([0-9])"
-
-    
     
 #python -m spacy download en_core_web_sm
 #word-level
@@ -115,7 +113,7 @@ def extract_words2(text):
     return toknz.tokenize(text)
 
 #pretty good
-def extract_sentences1(text):
+def extract_sentences_regex(text):
     text = " " + text + "  "
     text = text.replace("\n"," ")
     text = re.sub(prefixes,"\\1<prd>",text)
@@ -211,19 +209,10 @@ Date	Model	Version	Dep	Ent	Vec	Size	License
 2016-03-08	en_vectors_glove_md	1.0.0			X	727 MB	CC BY-SA		
 Issues and bug reports
 To report an issue with a model, please open an issue on the spaCy issue tracker. Please note that no model is perfect. Because models are statistical, their expected behaviour will always include some errors. However, particular errors can indicate deeper issues with the training feature extraction or optimisation code. If you come across patterns in the model\'s performance that seem suspicious, please do file a report."""
-testtext = test4
+testtext = test3
 testURL = "https://en.wikipedia.org/wiki/Machine_learning"
 
-
 tok_list = []
-numtok = 5
-for i in range(numtok):
-    if (i < 3):
-        tok_list.append("extract_sentences%d" % (i + 1))
-    elif (i > 3):
-        tok_list.append("extract_sentences%d" % i)
-    else:
-        tok_list.append("extract_sentences%dish" % (i)) #blip hard coded b/c nltk may have 2 dumb tokenizers
 
 def test_tokenizers(text, toks):
     '''
@@ -232,7 +221,7 @@ def test_tokenizers(text, toks):
         for sent in sents:
             print(sent)  
     '''
-    sents = extract_sentences1(text)
+    sents = extract_sentences_regex(text)
     for sent in sents:
         print(sent)
     sents = extract_sentences2(text)
