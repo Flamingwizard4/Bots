@@ -1,15 +1,17 @@
 ## ResearchBot
-# A program to facilitate research, meaning Google search + web scraping + content compilation + LP summarization
+# A program to facilitate research, meaning Google search + web scraping + content compilation + NLP summarization
 # TODO:
 # check robots.txt for specs
 # add some random sleep, clicks, movement, actions
-# rotate IPs, proxies, user agents, use headless browser
+# user agents, use headless browser
 # avoid honey pots and logins
 # add depth option for recursive search
 # test TokenBot and potentially fuse approaches
 # make priority queue with value function using content similarity to corpus
 # use gradient extraction coefficient (default: linear) to create dataset to train TransformerXL, default is 100% of layer 0, top 90% of layer 1, top 80% of layer 2, etc. to layer 9
 # use exponential gradient
+# add -t option for specific HTML tags: links/content/images
+# add -m option for multiple queries
 ##
 
 #pip install bs4, requests, scholarly, html5lib, google, progressbar2, clint, selectolax, warc, spacy, nltk, etc.
