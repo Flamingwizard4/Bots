@@ -13,6 +13,7 @@
 ##
 
 #pip install bs4, requests, scholarly, html5lib, google, progressbar2, clint, selectolax, warc, spacy, nltk, etc.
+#apt install scrot
 import sys, os, progressbar, time #utilities
 import re #Regex URL Validation
 import shutil, tempfile #manipulating files
