@@ -8,17 +8,18 @@
 ##
 
 import re #regex
-import spacy, en_core_web_sm #tokenizer & model
+#import spacy, en_core_web_sm #tokenizer & model
 from nltk import tokenize #standard tokenize lib
-#import nltk; nltk.download('punkt')
+import nltk#; nltk.download('punkt')
 from pprint import pprint #no idea
 from bs4 import BeautifulSoup #text parser
-import pyximport; pyximport.install(pyimport=True)
-import parser #faster HTML text parser
-from SearchBot import *
+from selectolax.parser import HTMLParser #faster HTML text parser
+#from SearchBot import **
+import numpy as np
+import urllib #url request
 
-#parses HTML using whitelisting to return text and list of URLs
-def get_text_bs(html):
+#parses HTML using whitelisting to return text, list of URLs, and list of images as numpy arrays
+def get_cont_bs(html):
     tree = BeautifulSoup(html, 'html.parser')
     text = tree.find_all(text=True)
     
@@ -28,6 +29,7 @@ def get_text_bs(html):
 
     output = ''
     link_list = []
+    imgs = []
 
     whitelist = [
         'p',
@@ -46,11 +48,21 @@ def get_text_bs(html):
                 else:
                     output += '{} '.format(t)    
     
-    return output, link_list
+    for imgtag in tree.find_all('img'):
+        try:
+            resp = urllib.urlopen(imgtag['src'])
+        except:
+            continue
+        im = np.asarray(bytearray(resp.read()), dtype="uint8")
+        #im = cv2.imdecode(im, cv2.IMREAD_COLOR) #OpenCV format
+        imgs.append(im)
+
+    return output, link_list, imgs
 
 #parses HTML using blacklisting to return text and list of URLs
-def get_text_selectolax(html):
-    tree = parser.HTMLParser(html)
+#could add image extraction to this method
+def get_cont_selectolax(html):
+    tree = HTMLParser(html)
 
     if tree.body is None:
         return None
@@ -58,8 +70,9 @@ def get_text_selectolax(html):
     link_list = []    
 
     for url in tree.css('a'):
-        link_list.append(url.attrs["href"])
-        url.text = "[URL]"
+        if "href" in url.attributes:
+            link_list.append(url.attributes["href"])
+        url.attrs['text'] = "[URL]"
         
     blacklist = [
         'link',
@@ -98,12 +111,14 @@ starters = "(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|Howeve
 acronyms = "([A-Z][.][A-Z][.](?:[A-Z][.])?)"
 websites = "[.](com|net|org|io|gov|me|edu|us|tech|info)"
 digits = "([0-9])"
-    
+
+'''Spacy    
 #python -m spacy download en_core_web_sm
 #word-level
 def extract_words(text):
     nlp = en_core_web_sm.load()
     return nlp(text)
+'''
 
 #word-level, keeping code/charts together better
 def extract_words2(text):
@@ -157,10 +172,11 @@ def extract_sentences_smart(text):
 
     abbrvs = ['st', 'mrs', 'ms', 'dr', 'prof', 'capt', 'cpt', 'lt',
      'mt', 'pres', 'sr', 'inc', 'ltd', 'jr', 'sr', 'co']    
+    """
     for abb in abbrvs:
         tokz._params.abbrev_types.add(abb)   
     print(tokz._params.abbrev_types)
-    """
+    
     for decision in tokz.debug_decisions(text):
         pprint(decision)
         print('=' * 30)
@@ -209,7 +225,7 @@ Date	Model	Version	Dep	Ent	Vec	Size	License
 2016-03-08	en_vectors_glove_md	1.0.0			X	727 MB	CC BY-SA		
 Issues and bug reports
 To report an issue with a model, please open an issue on the spaCy issue tracker. Please note that no model is perfect. Because models are statistical, their expected behaviour will always include some errors. However, particular errors can indicate deeper issues with the training feature extraction or optimisation code. If you come across patterns in the model\'s performance that seem suspicious, please do file a report."""
-testtext = test3
+testtext = test1 + test2 + test3
 testURL = "https://en.wikipedia.org/wiki/Machine_learning"
 
 tok_list = []
@@ -231,4 +247,4 @@ def test_tokenizers(text, toks):
     for snt in snts:
         print(snt)
 
-test_tokenizers(testtext, tok_list)        
+#test_tokenizers(testtext, tok_list)        
