@@ -5,13 +5,14 @@
 # add some random sleep, clicks, movement, actions
 # user agents, use headless browser
 # avoid honey pots and logins
-# add depth option for recursive search
-# test TokenBot and potentially fuse approaches
+# add website prowling
+#
 # make priority queue with value function using content similarity to corpus
 # use gradient extraction coefficient (default: linear) to create dataset to train TransformerXL, default is 100% of layer 0, top 90% of layer 1, top 80% of layer 2, etc. to layer 9
 # use exponential gradient
-# add -t option for specific HTML tags: links/content/images
-# add -m option for multiple queries
+#
+# add -t option for specific HTML tags? e.g. links/content/images
+# add -s option for selective screencapture
 ##
 
 #pip install bs4, requests, scholarly, html5lib, google, progressbar2, clint, selectolax, warc, spacy, nltk, etc.
@@ -24,6 +25,7 @@ import argparse #command line arguments
 import requests #HTTP request
 import scholarly #Google Scholar search
 import webbrowser #open URL in browser
+#import pyautogui #screenshot
 
 from googlesearch import search #Google Search results list
 from clint.textui import progress #download progress bar
@@ -33,6 +35,7 @@ import TokenBot
 from TokenBot import * #HTML Parsers, clean-up, and tokenizers
 from PIL import Image
 from itertools import cycle
+from urllib.parse import urlparse
 
 """METHODS"""
 #URL Validation, returns result generator
@@ -150,16 +153,28 @@ def ensure_content_length(
         r.raw._fp = spool
     return r
 
+#turns url into robots.txt url
+def robot_url(url):
+    purl = urlparse(url)
+    domain = '{uri.scheme}://{uri.netloc}/'.format(uri=purl)
+    return domain + "robots.txt"
+
 #returns list of whitelisted sentences, blacklisted sents, URLs, and images as numpy arrays
 def extract_content_from_URL(URL, toks):
     links = []
     seenlink = set()
-    cyc = get_proxies()
-    proxy = next(cyc)
+    proxy = next(get_proxies())
     try:
         r = ensure_content_length(URL, proxies={"http": proxy, "https": proxy}) #ensures the response has a Content-Length header
+        try:
+            req = requests.get(robot_url(URL), "HEAD")
+            if req.status_code < 400:
+                #parse robots.txt
+                print("Robots.txt found!")
+        except:
+            pass
     except:
-        extract_content_from_URL(URL, toks) 
+        extract_content_from_URL(URL, toks)#inefficient
     contentLen = int(r.headers["Content-Length"]) #not same as len(r.raw.read())
     for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(contentLen/1024) + 1): 
         if chunk: 
@@ -218,6 +233,39 @@ def get_proxies(URL=None):
             proxies.add(proxy)
     return cycle(proxies)
 
+#lets user select links and change their urls/add new ones, returning list of selected links
+def select_links(links):
+    URL_list = []
+    for link in links:
+        webbrowser.open(link, new=2)
+        q = input("Include website?? Enter y/n: ")
+        if re.match(q, "y"):
+            print("Current URL: %s"%link)
+            c = input("Do you want to change this URL?? Enter yes/no: ")
+            if re.match(c, "yes"):
+                url = input("Enter full new URL here: ")
+                URL_list.append(url)
+                moreFlag = True
+                while moreFlag:
+                    a = input("Would you like to enter more URLs from this site? Enter yes/no:")
+                    if re.match(a, "yes"):
+                        url = input("Enter new URL here: ")
+                        URL_list.append(url) 
+                    elif re.match(a, "no"):
+                        moreFlag = False
+                    else:
+                        continue
+            elif re.match(c, "no"):
+                URL_list.append(link)
+            else:
+                URL_list.append(link)#catchsave?
+        elif re.match(q, "n"):
+            continue
+        else:
+            #default is not included
+            continue
+    return URL_list
+        
 #prints links/content
 def read_data(stpath):      
     #goes through all links, then all content
