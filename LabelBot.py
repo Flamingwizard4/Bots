@@ -18,34 +18,43 @@
 ##
 
 
-import os, re
+import os, re, math
 from tkinter import *
 from PIL import ImageTk, Image, ImageDraw
-#import cv2
-#import cv2.cv as cv
-from time import time, sleep
+from time import sleep#, time
+from decimal import Decimal
 
 m = Tk() #main window
 m.title("LabelBot - Dataset Creation GUI")
-#m.geometry("600x600")
 #m.iconbitmap(logo.ico)
 
 cdir = os.getcwd()
+print("Current Directory: %s"%cdir)
 ldir = os.path.join(cdir, "labels", "unlabeled_images")#are these stored as numpy arrays in csv files or as real pictures??
 lblinfopath = os.path.join(cdir, "labels", "labels.txt")   
 #images to label
 lims = os.listdir(ldir)
 imgcount = 0
-images, boxes = [], [] #changes boxes to dictionary
+images, boxes = [], [] #changes boxes to dictionary per image with np imgs
 for im in lims:
     images.append(ImageTk.PhotoImage(Image.open(os.path.join(ldir, im)).resize((512,512)))) #change to storing images as numpy arrays in dictionaries
-print("There are %d images to label."%len(images))
+#print("There are %d images to label."%len(images))
 
-loc1 = (0, 0) #storage container for 1st cursor location
-loc2 = (0, 0) #2nd cursor location
+loc1, loc2 = (0, 0), (0, 0) #storage containers for cursor locations
 
-#parses labels.txt - needs to have spaces after LABEL:/INFO: 
-#add $ detector for spectrum symptoms
+#opens window in top left of screen
+def topleft_window(width=500, height=500):
+    # get screen width and height
+    screen_width = m.winfo_screenwidth()
+    screen_height = m.winfo_screenheight()
+
+    '''#centering x and y coordinates
+    x = (screen_width/2) - (width/2)
+    y = (screen_height/2) - (height/2)
+    '''
+    m.geometry('%dx%d+%d+%d' % (width, height, 0, 0))
+
+#parses labels.txt - needs to have spaces after "LABEL:" & "INFO:" 
 def parseLabels(path):
     symptoms = [] #list of symptom dictionaries
     textlines = [] #list of lines in labels.txt
@@ -98,6 +107,7 @@ def parseLabels(path):
                     lcount += 1
     return symptoms
 
+'''add working refreshImg to these:'''
 #go to next image    
 def nextImg():
     global imgCanvas
@@ -105,26 +115,20 @@ def nextImg():
     global backImgButt
     global imgcount
     global images
-    
     imgcount += 1
-    
     imgCanvas.grid_forget()    
     imgCanvas = Canvas(imgFrame, width=512, height=512)
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-    imgCanvas.grid(row=0, column=0, columnspan=3)
-    
+    imgCanvas.grid(row=0, column=0, columnspan=2)
+    nextImgButt.grid_forget()
     if imgcount == len(lims) - 1:
-        nextImgButt.grid_forget()
         nextImgButt = Button(imgFrame, text="Exit", command=m.quit, padx=20, pady=15)
-        nextImgButt.grid(row=1, column=2)
     else:
-        nextImgButt.grid_forget()
         nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
-        nextImgButt.grid(row=1, column=2)
+    nextImgButt.grid(row=1, column=1)
     backImgButt.grid_forget()
     backImgButt = Button(imgFrame, text="Last Image", command=backImg, padx=20, pady=15)
     backImgButt.grid(row=1, column=0)
-
 #go to previous image    
 def backImg():
     global imgCanvas
@@ -132,59 +136,48 @@ def backImg():
     global backImgButt
     global imgcount
     global images
-    
     imgcount -= 1
-    
     imgCanvas.grid_forget()    
     imgCanvas = Canvas(imgFrame, width=512, height=512)
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-    imgCanvas.grid(row=0, column=0, columnspan=3)
-    
+    imgCanvas.grid(row=0, column=0, columnspan=2)
+    backImgButt.grid_forget()
     if imgcount == 0:
-        backImgButt.grid_forget()
         backImgButt = Button(imgFrame, text="Last Image", command=backImg, padx=20, pady=15, state=DISABLED)
-        backImgButt.grid(row=1, column=0)
     else:
-        backImgButt.grid_forget()
         backImgButt = Button(imgFrame, text="Last Image", command=backImg, padx=20, pady=15)
-        backImgButt.grid(row=1, column=0)
+    backImgButt.grid(row=1, column=0)
     nextImgButt.grid_forget()
     nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
-    nextImgButt.grid(row=1, column=2)
+    nextImgButt.grid(row=1, column=1)
     
     #addCowButt = Button(imgFrame, text="Add Cow", command=addCow, padx=20, pady=15)
     #addCowButt.grid(row=1, column=1) 
-
-#button command functionality
-def addCow():
-    imgCanvas.bind('<Button-1>', draw_bb)
-    imgCanvas.bind('<ButtonRelease-1>', save_bb)
-
-#draw bounding box in real-time    
-def draw_bb(event):
+            
+#add BB button com
+def add_bb():
+    imgCanvas.bind('<Button-1>', __draw_bb)
+    imgCanvas.bind('<ButtonRelease-1>', __save_bb)
+    #disable removeCow button
+#draw BB in real-time    
+def __draw_bb(event):
     global loc1
-    imgCanvas.bind('<Motion>', draw_rec)
+    imgCanvas.bind('<Motion>', __draw_rec)
     loc1 = (event.x, event.y)
     print("Coords 1: ")
-    print(loc1)
-    
-#draws bounding box rectangle
-def draw_rec(event):
+    print(loc1)  
+#draws BB rectangle
+def __draw_rec(event):
     global loc1
     global images
     global imgcount
     global boxes
-    imgCanvas.delete('all')
-    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-    if boxes:
-        for loc in boxes:
-            imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
-    cursorLoc = (event.x, event.y)
-    coords = [loc1[0], loc1[1], cursorLoc[0], cursorLoc[1]]
-    #print(coords)
+    refreshImg()
+    csrLoc = (event.x, event.y)
+    coords = [loc1[0], loc1[1], csrLoc[0], csrLoc[1]]
     imgCanvas.create_rectangle(coords, outline="red", fill="", width=3)
-    
-def save_bb(event):
+#saves BBs  
+def __save_bb(event):
     global loc1
     global loc2
     global boxes
@@ -195,66 +188,189 @@ def save_bb(event):
     print("Coords 2: ")
     print(loc2)
     boxes.append([loc1[0], loc1[1], loc2[0], loc2[1]]) #change to dictionary
-    
-def extend():
-    print("Extended.")
-    
-def __addSymptom(name, desc, slider=False, options=None):
-    symFrame = Frame(lblFrame, padx=50, pady=10)
-    symFrame.grid(row=1, column=0)
-    sVar = IntVar()
+    #reenable removeCow button
+#remove BB button com
+def rem_bb():
+    imgCanvas.bind('<Button-1>', __sel_bb)
+    #disable addCow button
+#select BB to remove
+def __sel_bb(event):
+    global boxes
+    imgCanvas.unbind('<Button-1>')
+    selX = event.x
+    selY = event.y
+    boxcount, cDist, cBox = 0, 0, 0
+    for box in boxes:
+        x = box[0] + (box[2]/2)
+        y = box[1] + (box[3]/2)
+        dist = math.sqrt((selX-x)**2 + (selY-y)**2)
+        if dist < cDist:
+            cBox = boxcount
+            cDist = dist
+        boxcount += 1
+    print(cBox)
+    del boxes[cBox]
+    refreshImg()
+    #reenable addCow button
+#updates BBs
+def refreshImg():
+    imgCanvas.delete('all')
+    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+    if boxes:
+        for loc in boxes:
+            imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
+            
+#adds/redraws lFrames
+def addLBLs(lbls):
+    global lFrames
+    for l in range(len(lbls)):
+        if len(lFrames) != len(lbls): 
+            if 'opt' in lbls[l]:  
+                lFrames[l], sVars[l], vVars[l] = __addSymptom(lbls[l]['name'], lbls[l]['desc'], lbls[l]['opt'])
+            else:
+                lFrames[l], sVars[l], vVars[l] = __addSymptom(lbls[l]['name'], lbls[l]['desc'])
+        else:
+            for widget in lFrames[l].winfo_children():
+                if (widget.winfo_class() == "Label") and (widget['text'] == "/\\"):
+                    widget.unbind('<Button-1>')
+                    widget.config(text="\/")
+                    widget.bind('<Button-1>', lambda event, x=l: extend(lbls[x]['name'], lbls[x]['desc'], lbls[x]['opt']) if 'opt' in lbls[x] else extend(lbls[x]['name'], lbls[x]['desc']))
+                    break
+        lFrames[l].grid(row=l, column=0)    
+#draws symptom frame        
+def __addSymptom(name, desc, options=None):
+    lFrame = Frame(lblFrame, pady=10)
+    lFrame.grid(row=1, column=0) #is this line necessary with line 279?
+    sVar = IntVar()#variable for radiobutton selection
+    vVar = DoubleVar()#value variable for options
     #contents
-    s = Radiobutton(symFrame, text=name, variable=sVar)
+    s = Radiobutton(lFrame, text=name, variable=sVar) #check for whether options are present and if so make extend automatic
     s.grid(row=0, column=0)
-    sReset = Button(symFrame, text="Reset", command=lambda: sVar.set(0), anchor=E)
+    #reset button for clearing selection/value
+    sReset = Button(lFrame, text="Reset", command=lambda: reset(sVar, vVar), anchor=E)
     sReset.grid(row=0, column=1)
-    sButt = Button(symFrame, text="\/", command=extend)
-    sButt.grid(row=1, column=0, columnspan=2)
-    return symFrame, sVar
-    
+    #extend/retract label
+    eLabel = Label(lFrame, text = "\/", padx=5)
+    eLabel.bind('<Button-1>', lambda event: extend(name, desc, options) if options else extend(name, desc))
+    eLabel.grid(row=1, column=0, columnspan=2, sticky=W+E)
+    return lFrame, sVar, vVar
+#undo selection/value and retract    
+def reset(svar, vvar):
+    svar.set(0)
+    vvar.set(0)
+    retract() 
+#extends label to show additional info, examples, and options    
+def extend(name, info, opt=None):
+    global lFrames
+    for f in range(len(lFrames)):
+        for wid in lFrames[f].winfo_children():
+            if wid['text'] == name:
+                cVar = f #current lFrame num
+        lFrames[f].grid_forget()#should I not forget the current lFrame??
+    lFrames[cVar].grid(row=0, column=0)
+    for widget in lFrames[cVar].winfo_children():
+        if widget.winfo_class() == "Label" and widget['text'] == "\/":
+            widget.unbind('<Button-1>')
+            widget.config(text="/\\")
+            widget.bind('<Button-1>', lambda event: retract())
+            break
+    if opt:
+        if opt == "$":
+            #slider code
+            pass
+        else: #option buttons
+            optButts={}
+            optlist = opt.split(",")
+            for n in range(len(optlist)):
+                newOpt = optlist[n].strip()
+                optlist[n] = newOpt              
+            for o in range(len(optlist)):
+                val = float(optlist[o][-3:])
+                optButts[o] = Button(lFrames[cVar], text=optlist[o][:-4], command=lambda x=o, v=val: selOpt(optButts, optlist[x], vVars[cVar], v), padx=10, pady=5)#why are button commands not reactive??
+                optButts[o].grid(row=2, column=o)
+                if val == vVars[cVar].get():
+                    optButts[o].config(relief=SUNKEN)
+    #add label for text description
+    #add panes/frame for example images with option for see more 
+    #which if no appropriate dir is found just pulls up a google images search of the symptom   
+#retracts extended info    
+def retract():
+    #clears symptom Frames
+    for frame in lblFrame.winfo_children():
+        frame.grid_forget()
+        for w in frame.winfo_children():
+            if w.winfo_class() == "Button" and w['text'] != "Reset":
+                w.destroy() #destroys option buttons
+    #redraws symptom Frames
+    addLBLs(lbls)
+#mutually exclusive button select    
+def selOpt(optDict, option, var, value):
+    var.set(value)
+    for b in optDict:
+        if optDict[b]['text'] != option[:-4]:
+            optDict[b].config(relief=RAISED)
+        else:
+            optDict[b].config(relief=SUNKEN)
+
+#switch between bounding box and symptom labels mode
+def selMode(mode):
+    if mode == "BB":
+        lblButt.config(relief=RAISED)
+        bbButt.config(relief=SUNKEN)
+        for frame in lblFrame.winfo_children():
+            frame.grid_forget()
+            for w in frame.winfo_children():
+                if w.winfo_class() == "Button" and w['text'] != "Reset":
+                    w.destroy() #destroys option buttons
+        addCowButt.grid(row=0, column=0, sticky="nsew")
+        remCowButt.grid(row=1, column=0, sticky="nsew")
+    elif mode == "SL":
+        bbButt.config(relief=RAISED)
+        lblButt.config(relief=SUNKEN)
+        for frame in lblFrame.winfo_children():
+            frame.grid_forget()
+        addLBLs(lbls)
+        
 """WIDGETS:"""
 
-'''
-myButton = Button(m, text="Don't Click", command=buttFunc, padx=40, pady=20) #fg is text color, bg is background color
-myButton.grid(row=1, column=1)
-'''
+labelButts = Frame(m)
+labelButts.grid(row=0, column=0, columnspan=2, sticky=N+S+E+W)
+labelButts.grid_columnconfigure(0, weight=1)
+labelButts.grid_columnconfigure(1, weight=1)
 
-imgFrame = LabelFrame(m, text="Image Frame", padx=5, pady=5)
-imgFrame.grid(row=0, column=0)
-lblFrame = LabelFrame(m, text="Label Frame", padx=5, pady=5)
-lblFrame.grid(row=0, column=1)
+bbButt = Button(labelButts, text="Bounding Boxes", command=lambda : selMode("BB"))
+bbButt.grid(row=0, column=0, sticky="nsew")
+lblButt = Button(labelButts, text="Symptom Labels", command=lambda : selMode("SL"))
+lblButt.grid(row=0, column=1, sticky="nsew")
+
+#image/label frames
+imgFrame = LabelFrame(m, text="Image Frame", padx=2, pady=2)
+imgFrame.grid(row=1, column=0)
+lblFrame = LabelFrame(m, text="Label Frame", padx=2, pady=2)
+lblFrame.grid(row=1, column=1, sticky="nsew")
+m.grid_columnconfigure(1, weight=1)
+lblFrame.grid_columnconfigure(0, weight=1)
 
 imgCanvas = Canvas(imgFrame, width=512, height=512)
 imgCanvas.create_image(0, 0, image=images[0], anchor=NW)
-imgCanvas.grid(row=0, column=0, columnspan=3)
-
+imgCanvas.grid(row=0, column=0, columnspan=2)
 
 backImgButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=20, pady=15)
 backImgButt.grid(row=1, column=0)
-
 nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
-nextImgButt.grid(row=1, column=2)
+nextImgButt.grid(row=1, column=1)
 
-addCowButt = Button(imgFrame, text="Add Cow", command=addCow, padx=20, pady=15)
-addCowButt.grid(row=1, column=1)
+addCowButt = Button(lblFrame, text="Add Box", command=add_bb, padx=20, pady=15)
+remCowButt = Button(lblFrame, text="Remove Box", command=rem_bb, padx=20, pady=15)
+
 
 #parsing labels.txt   
 lbls = parseLabels(lblinfopath)
-mySymptoms = Label(lblFrame, text="Symptoms:")
-mySymptoms.grid(row=0, column=0) #columnspan=
+#print(lbls)
 
-symFrames = {}
-symVars = {}
-for l in range(len(lbls)):
-    spectrum = False
-    if "$" in lbls[l]['name']:
-        spectrum = True
-        lbls[l]['name'] = lbls[l]['name'][:-2]
-    if len(lbls[l]) == 3:  
-        symFrames[l], symVars[l] = __addSymptom(lbls[l]['name'], lbls[l]['desc'], spectrum, lbls[l]['opt'])
-    elif len(lbls[l]) == 2:
-        symFrames[l], symVars[l] = __addSymptom(lbls[l]['name'], lbls[l]['desc'], spectrum)
-    symFrames[l].grid(row=l, column=0)
+#populating label frame with parsed lbls
+#label frame storage
+lFrames, sVars, vVars = {}, {}, {}
 
-
+topleft_window(700, 620)
 m.mainloop()
