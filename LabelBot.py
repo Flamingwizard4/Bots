@@ -3,19 +3,13 @@
 ##LabelBot - GUI for rapid dataset creation
 #
 # pipeline from SearchBot
+#
 # add video functionality with pause/clip buttons in vidFrame
 # add value display for selection only labels
-# fix cut-off labelframes
 # add image examples w/ categories/slideshow in lframe
 # add hyperlink section
-# image progress status bar
-# finish parseLbls
-#   
-# save images as dictionaries with imgs as numpy arrays, BB coords, and labels
 # when displaying images check for img_bounded.csv in directory?
-# 
-# save symptoms as multiple one-hot vectors with values of either 0 or 1 in img_labeled.csv
-# add dual status bar with real-time directions on right (e.g. click and drag to select bounding box, right click in box to delete) and imagecount progess on left
+# save symptoms as multiple one-hot vectors with values from 0 to 1 in img_labeled.csv
 # add save and exit button in between last/next image buttons instead of turning next to exit
 # add dialog box for optional deleting of old images in directory
 ##
@@ -25,6 +19,7 @@ from tkinter import *
 from PIL import ImageTk, Image, ImageDraw
 from time import sleep
 import numpy as np
+import tkinter.scrolledtext as tkst
 
 
 '''METHODS:'''
@@ -38,7 +33,6 @@ def nextImg():
     global images
     imgcount += 1
     imgCanvas.grid_forget()    
-    imgCanvas = Canvas(imgFrame, width=512, height=512)
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
     imgCanvas.grid(row=0, column=0, columnspan=2)
     nextImgButt.grid_forget()
@@ -61,7 +55,6 @@ def backImg():
     global images
     imgcount -= 1
     imgCanvas.grid_forget()    
-    imgCanvas = Canvas(imgFrame, width=512, height=512)
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
     imgCanvas.grid(row=0, column=0, columnspan=2)
     if imgcount == 0:
@@ -90,17 +83,14 @@ def __draw_bb(event):
     global loc1
     imgCanvas.bind('<Motion>', __draw_rec)
     loc1 = (event.x, event.y)
-    print("Coords 1: ")
-    print(loc1)  
 #draw BB rectangle
 def __draw_rec(event):
     global loc1
     global images
     global imgcount
-    global boxes
     __refreshImg()
     csrLoc = (event.x, event.y)
-    coords = [loc1[0], loc1[1], csrLoc[0], csrLoc[1]]
+    coords = [loc1[0], loc1[1], csrLoc[0], csrLoc[1]] #can I make this a tuple?
     imgCanvas.create_rectangle(coords, outline="red", fill="", width=3)
 #save BBs - NOTE: this is completely wrong for now
 def __save_bb(event):
@@ -110,8 +100,6 @@ def __save_bb(event):
     imgCanvas.unbind('<Button-1>')
     imgCanvas.unbind('<ButtonRelease-1>')
     loc2 = (event.x, event.y)
-    print("Coords 2: ")
-    print(loc2)
     imgdict[imgcount]['box'].append([loc1[0], loc1[1], loc2[0], loc2[1]])
     imgCanvas.config(cursor='')
     remCowButt.config(state=NORMAL)
@@ -141,18 +129,45 @@ def __del_bb(event):
     imgCanvas.config(cursor="")
     addCowButt.config(state=NORMAL)
     helpStatus.config(text="Bounding box deleted.")
-#update BBs
+#update image BBs
 def __refreshImg():
     imgCanvas.delete('all')
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
     for loc in imgdict[imgcount]['box']:
         imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
-#select individual BB
+#select individual's BB to label
 def sel_bb():
-    pass
+    imgCanvas.bind('<Button-1>', __crop_bb)
+    imgCanvas.config(cursor="target") #try target/tcross/watch/trek
+    helpStatus.config(text="Click near the center of the bounding box whose individual you want to label:")
+#crop and zoom to label individual
+def __crop_bb(event):
+    global imgCanvas
+    global inds
+    imgCanvas.unbind('<Button-1>')
+    selX = event.x
+    selY = event.y
+    boxcount, cDist, cBox = 0, 0, 0
+    for box in imgdict[imgcount]['box']:
+        x = box[0] + (box[2]/2)
+        y = box[1] + (box[3]/2)
+        dist = math.sqrt((selX-x)**2 + (selY-y)**2)
+        if dist < cDist:
+            cBox = boxcount
+            cDist = dist
+        boxcount += 1
+    box = imgdict[imgcount]['box'][cBox] #grab bounding box coordinates
+    coords = (box[0], box[1], box[2], box[3])
+    print("Coordinates: ", coords)
+    im = Image.fromarray(imgdict[imgcount]['img']).crop(coords).resize((512, 512))
+    inds[imgcount].append(ImageTk.PhotoImage(im))
+    imgCanvas.grid_forget()
+    imgCanvas.create_image(0, 0, image=inds[imgcount][0], anchor=NW)
+    imgCanvas.grid(row=0, column=0, columnspan=2)
+    imgCanvas.config(cursor="")
+    helpStatus.config(text="Individual selected.")
+    
 #parse labels.txt - NOTE: user needs to have spaces after "LABEL:" & "INFO:"
-#add & functionality
-#add EXAMPLES:
 def __parseLbls(path):
     labels = [] #list of label dictionaries
     textlines = [] #list of lines in label
@@ -289,14 +304,12 @@ def __createOp(n, opFrame, ops, step, buttonsWidth):
             optButt[o].config(relief=SUNKEN)
 #extend label frame to show additional options, description, and examples
 def extend(n):
-    #global lFrames
     name = lbls[n]['name']
     desc = lbls[n]['desc']
     exam = lbls[n]['exam']
     opt = lbls[n]['opt'] if ('opt' in lbls[n]) else None
-    #global lFrames
     for f in range(len(lFrames)):
-        lFrames[f].grid_forget() #could be more specific
+        lFrames[f].grid_forget() #could be more specific here
     lFrames[n].grid(row=0, column=0)
     for widget in lFrames[n].winfo_children():
         if widget['text'] == "\/": #change eLabel to retract
@@ -338,21 +351,23 @@ def extend(n):
     pLabel.grid(row=crow, column=0)    
     crow+=1
     dFrame = LabelFrame(lFrames[n], text="Description") #description frame
-    dFrame.grid(row=crow, column=0, sticky="nsew")
+    dFrame.grid(row=crow, column=0, sticky="nsew", columnspan=2)
     crow+=1
-    dLabel = Label(dFrame, text=desc) 
-    dLabel.grid(row=0, column=0, sticky="nsew")
+    textbox = tkst.ScrolledText(dFrame, wrap=WORD, height=5, width=25)
+    textbox.insert(INSERT, desc) 
+    textbox.grid(row=0, column=0, sticky="nsew")
+    textbox.config(state=DISABLED)
+    #dLabel = Label(dFrame, text=desc, height=3, width=50) text cut off
+    #dLabel.grid(row=0, column=0, sticky="nsew")
     pLabel2 = Label(lFrames[n], pady=1) #padding label 2
     pLabel2.grid(row=crow, column=0)
     crow+=1
-    xFrame = LabelFrame(lFrames[n], text="Examples") #example frame
-    xFrame.grid(row=crow, column=0, sticky="nsew")
+    xFrame = LabelFrame(lFrames[n], text="Examples") #examples frame
+    xFrame.grid(row=crow, column=0, sticky="nsew", columnspan=2)
     crow+=1
     xLabel = Label(xFrame, text=exam)
     xLabel.grid(row=0, column=0, sticky="nsew")    
-            
-    #add label for text description
-    #add panes/frame for example images with option for see more 
+    #add loop for slideshow example images with option for see more 
     #which if no appropriate dir is found just pulls up a google images search of the symptom   
 #retract extended info    
 def retract():
@@ -368,7 +383,7 @@ def selLbl(n):
 def extLbl(n):
     helpStatus.config(text="Extended %s."%lbls[n]['name'])
     extend(n)
-#mutually exclusive button select   
+#option select   
 def selOpt(opDict, op, varNum, value, step):
     for wid in lFrames[varNum].winfo_children():
         if wid.winfo_class() == "Radiobutton":
@@ -387,7 +402,6 @@ def selOpt(opDict, op, varNum, value, step):
         else:
             opDict[o].config(relief=SUNKEN)
     helpStatus.config(text="Set value of "+op[:-4]+" to %0.1f"%value)
-
 #slider response
 def selSld(n):
     name = lbls[n]['name']
@@ -412,14 +426,15 @@ def __printVars():
         except:
             print("Couldn't get val var %s"%vVars[v])
     
-#switch between bounding box and symptom labels mode
-def selMode(mode):
+#switch between bounding box and symptom labels mode for debug purposes
+def __selMode(mode):
     if mode == "BB":
         lblButt.config(relief=RAISED)
         bbButt.config(relief=SUNKEN)
         __clrLbls()
-        addCowButt.grid(row=0, column=0, sticky="nsew", pady=(180, 30))
-        remCowButt.grid(row=1, column=0, sticky="nsew", pady=(30, 180))
+        addCowButt.grid(row=0, column=0, sticky="nsew", pady=(120, 30))
+        selCowButt.grid(row=1, column=0, sticky="nsew", pady=30)
+        remCowButt.grid(row=2, column=0, sticky="nsew", pady=(30, 120))
         helpStatus.config(text="Bounding Interface.")
     elif mode == "SL":
         bbButt.config(relief=RAISED)
@@ -448,11 +463,12 @@ cdir = os.getcwd()
 idir = os.path.join(cdir, "labels", "unlabeled_images")#should I keep unlabeled_images??
 lblinfopath = os.path.join(cdir, "labels", "labels.txt")   
 lims = os.listdir(idir) #images files to label
-imgdict = {} #Attributes: img, box, lbl, val
+imgdict, inds = {}, {} #Image Dictionary Attributes: img, box, lbl, val
 images = [] #temporary storage for Tkinter images
 imgcount = 0
 for im in lims:
     imgdict[imgcount] = {"img":np.asarray(Image.open(os.path.join(idir, im))), "box":[]}
+    inds[imgcount] = [] #storage for individuals per image
     images.append(ImageTk.PhotoImage(Image.open(os.path.join(idir, im)).resize((512,512)))) #should Image.fromarray(imgdict[imgcount]['img']).resize((512, 512)) be used instead of opening?
     imgcount += 1
 imgcount = 0
@@ -465,9 +481,9 @@ modeButts.grid(row=0, column=0, columnspan=2, sticky="nsew")
 modeButts.grid_columnconfigure(0, weight=1)
 modeButts.grid_columnconfigure(1, weight=1)
 
-bbButt = Button(modeButts, text="Bounding Boxes", command=lambda : selMode("BB"))
+bbButt = Button(modeButts, text="Bounding Boxes", command=lambda : __selMode("BB"))
 bbButt.grid(row=0, column=0, sticky="nsew")
-lblButt = Button(modeButts, text="Symptom Labels", command=lambda : selMode("SL"))
+lblButt = Button(modeButts, text="Symptom Labels", command=lambda : __selMode("SL"))
 lblButt.grid(row=0, column=1, sticky="nsew")
 
 #image/label frames
@@ -497,6 +513,7 @@ imgStatus = Label(statusBar, text="Image 1 of 3.", anchor=E, bd=1)
 imgStatus.grid(row=0, column=1, sticky="nsew")
 
 addCowButt = Button(lblFrame, text="Add Box", command=add_bb, padx=20, pady=15)
+selCowButt = Button(lblFrame, text="Select Individual", command=sel_bb, padx=5, pady=15)
 remCowButt = Button(lblFrame, text="Remove Box", command=rem_bb, padx=20, pady=15)
   
 lbls = __parseLbls(lblinfopath) #parsing labels.txt 
