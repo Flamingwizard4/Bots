@@ -23,7 +23,6 @@ import tkinter.scrolledtext as tkst
 
 
 '''METHODS:'''
-'''add working __refreshImg/individual BBs to these:'''
 #go to next image    
 def nextImg():
     global imgCanvas
