@@ -5,7 +5,6 @@
 # pipeline from SearchBot
 #
 # add video functionality with pause/clip buttons in vidFrame
-# add value display for selection only labels
 # add image examples w/ categories/slideshow in lframe
 # add hyperlink section
 # when displaying images check for img_bounded.csv in directory?
@@ -20,7 +19,6 @@ from PIL import ImageTk, Image, ImageDraw
 from time import sleep
 import numpy as np
 import tkinter.scrolledtext as tkst
-
 
 '''METHODS:'''
 #go to next image    
@@ -376,8 +374,12 @@ def retract():
     #__printVars()
 #select label
 def selLbl(n):
+    if 'opt' not in lbls[n]:
+        vVars[n].set(1)
+        nVars[n].set(lbls[n]['name']+":1.0")
+    else:
+        extend(n)
     helpStatus.config(text="Selected %s."%lbls[n]['name'])
-    extend(n)
 #extend label
 def extLbl(n):
     helpStatus.config(text="Extended %s."%lbls[n]['name'])
