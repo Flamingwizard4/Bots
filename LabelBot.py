@@ -145,7 +145,12 @@ def __refreshImg():
         imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
 #label individuals button com
 def lbl_inds():
-    pass
+    for widget in imgFrame.winfo_children():
+        if widget.winfo_class() == "Button":
+            widget.grid_forget()
+            
+            
+            
     #imgCanvas.bind('<Button-1>', __crop_bb)
     #imgCanvas.config(cursor="target") #try target/tcross/watch/trek
     #helpStatus.config(text="Click near the center of the bounding box whose individual you want to label:")
@@ -164,6 +169,23 @@ def __crop_bb(event):
     #add back to image button
     #change to symptom labeling mode
     #change labels to save per individual
+    
+#switch between bounding box and symptom labels mode for debug purposes
+def __selMode(mode):
+    if mode == "BB":
+        lblButt.config(relief=RAISED)
+        bbButt.config(relief=SUNKEN)
+        __clrLbls()
+        addBBButt.grid(row=0, column=0, sticky="nsew", pady=60)
+        remBBButt.grid(row=1, column=0, sticky="nsew", pady=60)
+        lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
+        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
+    elif mode == "SL":
+        bbButt.config(relief=RAISED)
+        lblButt.config(relief=SUNKEN)
+        __clrLbls()
+        __addLbls(lbls)
+        helpStatus.config(text="Labeling Interface.")
     
 #parse labels.txt - NOTE: user needs to have spaces after "LABEL:" & "INFO:"
 def __parseLbls(path):
@@ -427,23 +449,6 @@ def __printVars():
             print("Value Variable #%d"%v, vVars[v].get())
         except:
             print("Couldn't get val var %s"%vVars[v])
-    
-#switch between bounding box and symptom labels mode for debug purposes
-def __selMode(mode):
-    if mode == "BB":
-        lblButt.config(relief=RAISED)
-        bbButt.config(relief=SUNKEN)
-        __clrLbls()
-        addBBButt.grid(row=0, column=0, sticky="nsew", pady=60)
-        remBBButt.grid(row=1, column=0, sticky="nsew", pady=60)
-        lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
-        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
-    elif mode == "SL":
-        bbButt.config(relief=RAISED)
-        lblButt.config(relief=SUNKEN)
-        __clrLbls()
-        __addLbls(lbls)
-        helpStatus.config(text="Labeling Interface.")
 
 #open window in top left of screen
 def __topleft_window(width=750, height=630):
