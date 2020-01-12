@@ -41,6 +41,7 @@ def nextImg():
     backImgButt.grid_forget()
     backImgButt = Button(imgFrame, text="Last Image", command=backImg, padx=20, pady=15)
     backImgButt.grid(row=1, column=0, sticky="nsew")
+    helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
     imgStatus.config(text="Image %d of %d"%(imgcount+1, len(lims)))
     __refreshImg()
 #go to previous image    
@@ -62,6 +63,7 @@ def backImg():
     nextImgButt.grid_forget()
     nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
     nextImgButt.grid(row=1, column=1, sticky="nsew")
+    helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
     imgStatus.config(text="Image %d of %d"%(imgcount+1, len(lims)))
     __refreshImg()
 #save image with labels and values in pickled dictionary
@@ -70,18 +72,18 @@ def __saveImg(imarray, imcount):
            
 #add BB button com
 def add_bb():
-    imgCanvas.bind('<Button-1>', __draw_bb)
+    imgCanvas.bind('<Button-1>', __start_bb)
     imgCanvas.bind('<ButtonRelease-1>', __save_bb)
     imgCanvas.config(cursor='cross')
     remCowButt.config(state=DISABLED)
-    helpStatus.config(text="Click and drag to draw a bounding box around an individual:")
+    helpStatus.config(text="Click and drag (topleft to bottomright) to draw a bounding box around an individual:")
 #draw BB in real-time    
-def __draw_bb(event):
+def __start_bb(event):
     global loc1
-    imgCanvas.bind('<Motion>', __draw_rec)
+    imgCanvas.bind('<Motion>', __draw_bb)
     loc1 = (event.x, event.y)
 #draw BB rectangle
-def __draw_rec(event):
+def __draw_bb(event):
     global loc1
     global images
     global imgcount
@@ -89,7 +91,7 @@ def __draw_rec(event):
     csrLoc = (event.x, event.y)
     coords = [loc1[0], loc1[1], csrLoc[0], csrLoc[1]] #can I make this a tuple?
     imgCanvas.create_rectangle(coords, outline="red", fill="", width=3)
-#save BBs - NOTE: this is completely wrong for now
+#save BBs
 def __save_bb(event):
     global loc1
     global loc2
@@ -97,10 +99,15 @@ def __save_bb(event):
     imgCanvas.unbind('<Button-1>')
     imgCanvas.unbind('<ButtonRelease-1>')
     loc2 = (event.x, event.y)
-    imgdict[imgcount]['box'].append([loc1[0], loc1[1], loc2[0], loc2[1]])
+    imgdict[imgcount]['box'].append([loc1[0], loc1[1], loc2[0], loc2[1]]) #save BB coords
+    im = Image.fromarray(imgdict[imgcount]['img']).resize((512, 512))
+    coords = (loc1[0], loc1[1], loc2[0], loc2[1]) #4-tuple form
+    im = im.crop(coords)
+    inds[imgcount].append(ImageTk.PhotoImage(im.resize((512, 512)))) #append individual image to inds dictionary for Tk storage
     imgCanvas.config(cursor='')
     remCowButt.config(state=NORMAL)
     helpStatus.config(text="Bounding box saved.")
+    #print(loc1, loc2)
 #remove BB button com
 def rem_bb():
     imgCanvas.bind('<Button-1>', __del_bb)
@@ -112,16 +119,20 @@ def __del_bb(event):
     imgCanvas.unbind('<Button-1>')
     selX = event.x
     selY = event.y
-    boxcount, cDist, cBox = 0, 0, 0
+    #print("Selected coords:", selX, selY)
+    boxcount, cBox = 0, 0
+    dist = 100
     for box in imgdict[imgcount]['box']:
-        x = box[0] + (box[2]/2)
-        y = box[1] + (box[3]/2)
-        dist = math.sqrt((selX-x)**2 + (selY-y)**2)
-        if dist < cDist:
+        xc = (box[0] + box[2])/2
+        yc = (box[1] + box[3])/2
+        #print("Center coords:", xc, yc)
+        cDist = math.sqrt((selX-xc)**2 + (selY-yc)**2)
+        if dist > cDist:
             cBox = boxcount
-            cDist = dist
+            dist = cDist
         boxcount += 1
     del imgdict[imgcount]['box'][cBox] #delete bounding box
+    del inds[imgcount][cBox] #delete individual image
     __refreshImg()
     imgCanvas.config(cursor="")
     addCowButt.config(state=NORMAL)
@@ -132,37 +143,27 @@ def __refreshImg():
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
     for loc in imgdict[imgcount]['box']:
         imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
-#select individual's BB to label
-def sel_bb():
-    imgCanvas.bind('<Button-1>', __crop_bb)
-    imgCanvas.config(cursor="target") #try target/tcross/watch/trek
-    helpStatus.config(text="Click near the center of the bounding box whose individual you want to label:")
+#label individuals button com
+def lbl_inds():
+    pass
+    #imgCanvas.bind('<Button-1>', __crop_bb)
+    #imgCanvas.config(cursor="target") #try target/tcross/watch/trek
+    #helpStatus.config(text="Click near the center of the bounding box whose individual you want to label:")
 #crop and zoom to label individual
 def __crop_bb(event):
     global imgCanvas
     global inds
     imgCanvas.unbind('<Button-1>')
-    selX = event.x
-    selY = event.y
-    boxcount, cDist, cBox = 0, 0, 0
-    for box in imgdict[imgcount]['box']:
-        x = box[0] + (box[2]/2)
-        y = box[1] + (box[3]/2)
-        dist = math.sqrt((selX-x)**2 + (selY-y)**2)
-        if dist < cDist:
-            cBox = boxcount
-            cDist = dist
-        boxcount += 1
-    box = imgdict[imgcount]['box'][cBox] #grab bounding box coordinates
-    coords = (box[0], box[1], box[2], box[3])
-    print("Coordinates: ", coords)
-    im = Image.fromarray(imgdict[imgcount]['img']).crop(coords).resize((512, 512))
-    inds[imgcount].append(ImageTk.PhotoImage(im))
+    
     imgCanvas.grid_forget()
-    imgCanvas.create_image(0, 0, image=inds[imgcount][0], anchor=NW)
+    imgCanvas.create_image(0, 0, image=inds[imgcount][cBox], anchor=NW)
     imgCanvas.grid(row=0, column=0, columnspan=2)
     imgCanvas.config(cursor="")
-    helpStatus.config(text="Individual selected.")
+    helpStatus.config(text="Individual #%d selected."%cBox)
+    #change button to "Label Individuals"
+    #add back to image button
+    #change to symptom labeling mode
+    #change labels to save per individual
     
 #parse labels.txt - NOTE: user needs to have spaces after "LABEL:" & "INFO:"
 def __parseLbls(path):
@@ -433,10 +434,10 @@ def __selMode(mode):
         lblButt.config(relief=RAISED)
         bbButt.config(relief=SUNKEN)
         __clrLbls()
-        addCowButt.grid(row=0, column=0, sticky="nsew", pady=(120, 30))
-        selCowButt.grid(row=1, column=0, sticky="nsew", pady=30)
-        remCowButt.grid(row=2, column=0, sticky="nsew", pady=(30, 120))
-        helpStatus.config(text="Bounding Interface.")
+        addBBButt.grid(row=0, column=0, sticky="nsew", pady=60)
+        remBBButt.grid(row=1, column=0, sticky="nsew", pady=60)
+        lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
+        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
     elif mode == "SL":
         bbButt.config(relief=RAISED)
         lblButt.config(relief=SUNKEN)
@@ -513,9 +514,9 @@ helpStatus.grid(row=0, column=0, sticky="nsew")
 imgStatus = Label(statusBar, text="Image 1 of 3.", anchor=E, bd=1)
 imgStatus.grid(row=0, column=1, sticky="nsew")
 
-addCowButt = Button(lblFrame, text="Add Box", command=add_bb, padx=20, pady=15)
-selCowButt = Button(lblFrame, text="Select Individual", command=sel_bb, padx=5, pady=15)
-remCowButt = Button(lblFrame, text="Remove Box", command=rem_bb, padx=20, pady=15)
+addBBButt = Button(lblFrame, text="Add Bounding Box", command=add_bb, padx=20, pady=15)
+remBBButt = Button(lblFrame, text="Remove Bounding Box", command=rem_bb, padx=20, pady=15)
+lblIndsButt = Button(lblFrame, text="Label Individuals", command=lbl_inds, padx=5, pady=15)
   
 lbls = __parseLbls(lblinfopath) #parsing labels.txt 
 
@@ -532,4 +533,8 @@ m.mainloop()
     "lbl":lblnames,
     "val: lblvec
 }
+
+for choosing video to annotate:
+filedialog.askopenfilename(initialdir="/", title="Select Video File (mp3/mp4)",
+                           filetypes=(("videos", ".mp3 .mp4"), ("all files", "*.*"))) #this might have to be separated with same "videos" name
 '''
