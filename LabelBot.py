@@ -22,61 +22,95 @@ import tkinter.scrolledtext as tkst
 
 '''METHODS:'''
 #go to next image    
-def nextImg():
+def nextImg(indMode=False):
     global imgCanvas
-    global nextImgButt
-    global backImgButt
     global imgcount
-    global images
-    imgcount += 1
-    imgCanvas.grid_forget()    
-    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-    imgCanvas.grid(row=0, column=0, columnspan=2)
-    nextImgButt.grid_forget()
-    if imgcount == len(lims) - 1:
-        nextImgButt = Button(imgFrame, text="Exit", command=m.quit, padx=40, pady=15)
-    else:
-        nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
-    nextImgButt.grid(row=1, column=1, sticky="nsew")
-    backImgButt.grid_forget()
-    backImgButt = Button(imgFrame, text="Last Image", command=backImg, padx=20, pady=15)
-    backImgButt.grid(row=1, column=0, sticky="nsew")
-    helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
-    imgStatus.config(text="Image %d of %d"%(imgcount+1, len(lims)))
-    __refreshImg()
+    global indcount
+    if indMode:
+        __clrVars()
+        indcount += 1
+        __clrLbls()
+        __addLbls()
+        imgCanvas.grid_forget()    
+        imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
+        imgCanvas.grid(row=0, column=0, columnspan=2)
+        helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
+        if indcount == len(inds[imgcount])-1:
+            nextButt.config(text="Save Image")
+            nextButt.config(command=pklImg)
+        else:
+            nextButt.config(text="Next Individual")
+            nextButt.config(command=lambda: nextImg(True))
+        prevButt.config(state=NORMAL)
+    else: #image mode
+        indcount = 0
+        imgcount += 1
+        if not inds[imgcount]:
+            lblButt.config(state=DISABLED)
+            lblIndsButt.config(state=DISABLED)
+        else:
+            lblButt.config(state=NORMAL)
+            lblIndsButt.config(state=NORMAL)
+        imgCanvas.grid_forget()    
+        imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+        imgCanvas.grid(row=0, column=0, columnspan=2)
+        helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
+        if imgcount == len(lims) - 1:
+            nextButt.config(text="Save & Exit")
+            nextButt.config(command=saveAll)           
+        else:
+            nextButt.config(text="Next Image")
+            nextButt.config(command=nextImg)
+            prevButt.config(state=NORMAL) 
+        __refreshImg()
 #go to previous image    
-def backImg():
+def backImg(indMode=False):
     global imgCanvas
-    global nextImgButt
-    global backImgButt
     global imgcount
-    global images
-    imgcount -= 1
-    imgCanvas.grid_forget()    
-    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-    imgCanvas.grid(row=0, column=0, columnspan=2)
-    if imgcount == 0:
-        backImgButt.config(state=DISABLED)
-    else:
-        backImgButt.config(state=NORMAL)
-    backImgButt.grid(row=1, column=0, sticky="nsew")
-    nextImgButt.grid_forget()
-    nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
-    nextImgButt.grid(row=1, column=1, sticky="nsew")
-    helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
-    imgStatus.config(text="Image %d of %d"%(imgcount+1, len(lims)))
-    __refreshImg()
-#save image with labels and values in pickled dictionary
-def __saveImg(imarray, imcount):
-    pass
+    global indcount
+    if indMode:
+        __clrVars()
+        indcount -= 1
+        __clrLbls()
+        __addLbls()
+        imgCanvas.grid_forget()    
+        imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
+        imgCanvas.grid(row=0, column=0, columnspan=2)
+        if indcount == 0:
+            prevButt.config(state=DISABLED)
+        if indcount != len(inds[imgcount]):
+            nextButt.config(text="Next Individual")
+            nextButt.config(command= lambda: nextImg(True))
+        helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
+    else: #image mode
+        indcount = 0
+        imgcount -= 1
+        if not inds[imgcount]:
+            lblButt.config(state=DISABLED)
+            lblIndsButt.config(state=DISABLED)
+        else:
+            lblButt.config(state=NORMAL)
+            lblIndsButt.config(state=NORMAL)
+        imgCanvas.grid_forget()    
+        imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+        imgCanvas.grid(row=0, column=0, columnspan=2)
+        helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
+        if imgcount == 0:
+            prevButt.config(state=DISABLED)
+        else:
+            prevButt.config(state=NORMAL)
+        if imgcount != len(lims) - 1:
+            nextButt.config(text="Next Image")
+            nextButt.config(command=nextImg)   
+        __refreshImg()
            
 #add BB button com
 def add_bb():
     imgCanvas.bind('<Button-1>', __start_bb)
     imgCanvas.bind('<ButtonRelease-1>', __save_bb)
     imgCanvas.config(cursor='cross')
-    remCowButt.config(state=DISABLED)
-    helpStatus.config(text="Click and drag (topleft to bottomright) to draw a bounding box around an individual:")
+    remBBButt.config(state=DISABLED)
+    helpStatus.config(text="Click-and-drag (starting topleft) to draw a bounding box:")
 #draw BB in real-time    
 def __start_bb(event):
     global loc1
@@ -99,20 +133,23 @@ def __save_bb(event):
     imgCanvas.unbind('<Button-1>')
     imgCanvas.unbind('<ButtonRelease-1>')
     loc2 = (event.x, event.y)
-    imgdict[imgcount]['box'].append([loc1[0], loc1[1], loc2[0], loc2[1]]) #save BB coords
+    imgdict[imgcount]['box'].append([loc1[0], loc1[1], loc2[0], loc2[1]]) #save BB coords for image
     im = Image.fromarray(imgdict[imgcount]['img']).resize((512, 512))
-    coords = (loc1[0], loc1[1], loc2[0], loc2[1]) #4-tuple form
+    coords = (loc1[0], loc1[1], loc2[0], loc2[1]) #4-tuple form for cropping
     im = im.crop(coords)
-    inds[imgcount].append(ImageTk.PhotoImage(im.resize((512, 512)))) #append individual image to inds dictionary for Tk storage
+    inds[imgcount].append(ImageTk.PhotoImage(im.resize((512, 512)))) #append cropped image to inds dictionary for Tk storage
+    imgdict[imgcount]['lbl'].append([])
+    imgdict[imgcount]['val'].append([])
     imgCanvas.config(cursor='')
-    remCowButt.config(state=NORMAL)
+    remBBButt.config(state=NORMAL)
+    lblIndsButt.config(state=NORMAL)
     helpStatus.config(text="Bounding box saved.")
     #print(loc1, loc2)
 #remove BB button com
 def rem_bb():
     imgCanvas.bind('<Button-1>', __del_bb)
     imgCanvas.config(cursor="pirate")
-    addCowButt.config(state=DISABLED)
+    addBBButt.config(state=DISABLED)
     helpStatus.config(text="Click near the center of the bounding box you want to delete:")
 #delete BB
 def __del_bb(event):
@@ -132,10 +169,12 @@ def __del_bb(event):
             dist = cDist
         boxcount += 1
     del imgdict[imgcount]['box'][cBox] #delete bounding box
-    del inds[imgcount][cBox] #delete individual image
+    del imgdict[imgcount]['lbl'][cBox] #delete individual's labels
+    del imgdict[imgcount]['val'][cBox] #delete individual's symptom values
+    del inds[imgcount][cBox] #delete inds Tk image
     __refreshImg()
     imgCanvas.config(cursor="")
-    addCowButt.config(state=NORMAL)
+    addBBButt.config(state=NORMAL)
     helpStatus.config(text="Bounding box deleted.")
 #update image BBs
 def __refreshImg():
@@ -143,50 +182,7 @@ def __refreshImg():
     imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
     for loc in imgdict[imgcount]['box']:
         imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
-#label individuals button com
-def lbl_inds():
-    for widget in imgFrame.winfo_children():
-        if widget.winfo_class() == "Button":
-            widget.grid_forget()
-            
-            
-            
-    #imgCanvas.bind('<Button-1>', __crop_bb)
-    #imgCanvas.config(cursor="target") #try target/tcross/watch/trek
-    #helpStatus.config(text="Click near the center of the bounding box whose individual you want to label:")
-#crop and zoom to label individual
-def __crop_bb(event):
-    global imgCanvas
-    global inds
-    imgCanvas.unbind('<Button-1>')
-    
-    imgCanvas.grid_forget()
-    imgCanvas.create_image(0, 0, image=inds[imgcount][cBox], anchor=NW)
-    imgCanvas.grid(row=0, column=0, columnspan=2)
-    imgCanvas.config(cursor="")
-    helpStatus.config(text="Individual #%d selected."%cBox)
-    #change button to "Label Individuals"
-    #add back to image button
-    #change to symptom labeling mode
-    #change labels to save per individual
-    
-#switch between bounding box and symptom labels mode for debug purposes
-def __selMode(mode):
-    if mode == "BB":
-        lblButt.config(relief=RAISED)
-        bbButt.config(relief=SUNKEN)
-        __clrLbls()
-        addBBButt.grid(row=0, column=0, sticky="nsew", pady=60)
-        remBBButt.grid(row=1, column=0, sticky="nsew", pady=60)
-        lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
-        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
-    elif mode == "SL":
-        bbButt.config(relief=RAISED)
-        lblButt.config(relief=SUNKEN)
-        __clrLbls()
-        __addLbls(lbls)
-        helpStatus.config(text="Labeling Interface.")
-    
+
 #parse labels.txt - NOTE: user needs to have spaces after "LABEL:" & "INFO:"
 def __parseLbls(path):
     labels = [] #list of label dictionaries
@@ -244,7 +240,7 @@ def __parseLbls(path):
                 lcount += 1
     #print(labels)
     return labels            
-#clear label frames    
+#clear label frames                    
 def __clrLbls():
     for widget in lblFrame.winfo_children(): #lFrames
             widget.grid_forget()
@@ -258,14 +254,21 @@ def __clrLbls():
                 elif wid.winfo_class() == "Label" and wid['text'] == "":
                     wid.destroy() #destroys padding labels
 #create/redraw label frames
-def __addLbls(lbls):
-    #global lFrames
+def __addLbls():
     for l in range(len(lbls)):
         if len(lFrames) != len(lbls):#create lFrames
             lFrames[l], sVars[l], vVars[l], nVars[l] = __createLbl(l)
         else:#redraw lFrames
             for widget in lFrames[l].winfo_children():
-                if (widget.winfo_class() == "Label") and (widget['text'] == "/\\"): #change eLabel to extend
+                if widget.winfo_class() == "Radiobutton":
+                    if widget['text'] in imgdict[imgcount]['lbl'][indcount]:
+                        labelNdx = imgdict[imgcount]['lbl'][indcount].index(widget['text'])
+                        val = imgdict[imgcount]['val'][indcount][labelNdx]
+                        name = lbls[l]['name']
+                        sVars[l].set(1)
+                        vVars[l].set(val)
+                        nVars[l].set(name+": %0.2f"%val)
+                elif (widget.winfo_class() == "Label") and (widget['text'] == "/\\"): #change eLabel to extend
                     widget.unbind('<Button-1>')
                     widget.config(text="\/")
                     widget.bind('<Button-1>', lambda event, x=l: extLbl(x))
@@ -287,21 +290,25 @@ def __createLbl(n):
     s = Radiobutton(lFrame, variable=sVar, value=1, command=lambda: selLbl(n), textvariable=nVar)
     s.grid(row=0, column=0)
     #reset button for clearing selection/value
-    resButt = Button(lFrame, text="Reset", command=lambda: reset(n), anchor=E, padx=1)
+    resButt = Button(lFrame, text="Reset", command=lambda : reset(n), anchor=E, padx=1)
     resButt.grid(row=0, column=1)
     #extend/retract event label
     eLabel = Label(lFrame, text = "\/", pady=5)
     eLabel.bind('<Button-1>', lambda event: extLbl(n))
     eLabel.grid(row=1, column=0, columnspan=2, sticky=W+E)
     return lFrame, sVar, vVar, nVar
-#reset variables and retract    
+#reset variables and retract   
 def reset(n):
     name = lbls[n]['name']
     sVars[n].set(0)
     vVars[n].set(0)
     nVars[n].set(name)
+    if name in imgdict[imgcount]['lbl'][indcount]: #clean imgdict records
+        labelNdx = imgdict[imgcount]['lbl'][indcount].index(name)
+        del imgdict[imgcount]['lbl'][indcount][labelNdx] #delete individual's labels
+        del imgdict[imgcount]['val'][indcount][labelNdx] #delete individual's symptom values
     retract()
-    helpStatus.config(text="Reset %s variables."%name)
+    helpStatus.config(text="Reset variables for %s."%name)
 #create option bar
 def __createOp(n, opFrame, ops, step, buttonsWidth):
     #global lFrames
@@ -392,7 +399,7 @@ def extend(n):
 #retract extended info    
 def retract():
     __clrLbls()
-    __addLbls(lbls)
+    __addLbls()
     helpStatus.config(text="Labeling Interface.")
     #__printVars()
 #select label
@@ -425,7 +432,7 @@ def selOpt(opDict, op, varNum, value, step):
             opDict[o].config(relief=RAISED)
         else:
             opDict[o].config(relief=SUNKEN)
-    helpStatus.config(text="Set value of "+op[:-4]+" to %0.1f"%value)
+    helpStatus.config(text="Set value of "+lbls[varNum]['name']+" to %0.2f"%value)
 #slider response
 def selSld(n):
     name = lbls[n]['name']
@@ -435,6 +442,100 @@ def selSld(n):
             wid.select()
     nVars[n].set(name+": %0.2f"%val)
     helpStatus.config(text="Set value of "+name+" to %0.2f"%val)
+
+#draw bounding boxes mode
+def __bnd_inds():
+    global imgCanvas
+    imgCanvas.grid_forget()
+    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+    imgCanvas.grid(row=0, column=0, columnspan=2)
+    nextButt.config(command=nextImg)
+    prevButt.config(command=backImg)
+    nextButt.config(text="Next Image")
+    prevButt.config(text="Previous Image")
+    if imgcount != 0:
+        prevButt.config(state=NORMAL)
+    else:
+        prevButt.config(state=DISABLED)
+    prevButt.grid(row=1, column=0, sticky="nsew")
+    nextButt.grid(row=1, column=1, sticky="nsew")    
+#label individuals mode
+def __lbl_inds():
+    global imgCanvas
+    imgCanvas.grid_forget()
+    imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
+    imgCanvas.grid(row=0, column=0, columnspan=2)
+    prevButt.config(command=lambda: backImg(True))
+    if len(inds[imgcount]) != 1:
+        nextButt.config(text="Next Individual")
+        nextButt.config(command=lambda: nextImg(True))
+    else:
+        nextButt.config(text="Save Image")
+        nextButt.config(command=pklImg)
+    prevButt.config(text="Previous Individual")
+    if indcount != 0:
+        prevButt.config(state=NORMAL)
+    else:
+        prevButt.config(state=DISABLED)
+    prevButt.grid(row=1, column=0, sticky="nsew")
+    nextButt.grid(row=1, column=1, sticky="nsew")
+    #change labels to save per individual   
+#switch between bounding box and labeling modes
+def __selMode(mode):
+    if mode == "BB":
+        m.geometry("750x660")
+        lblButt.config(relief=RAISED)
+        bbButt.config(relief=SUNKEN)
+        if len(lFrames) != 0:
+            __clrVars()
+            __clrLbls()
+        addBBButt.grid(row=0, column=0, sticky="nsew", pady=60)
+        remBBButt.grid(row=1, column=0, sticky="nsew", pady=60)
+        lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
+        __bnd_inds()
+        __refreshImg()
+        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\" button.")
+    elif mode == "SL":
+        m.geometry("775x685")
+        lblButt.config(state=NORMAL)
+        bbButt.config(relief=RAISED)
+        lblButt.config(relief=SUNKEN)
+        #__clrVars()
+        __clrLbls()
+        __addLbls()
+        __lbl_inds()
+        helpStatus.config(text="Labeling Interface.")
+
+#append variables to imgdict and clear
+def __clrVars():
+    global imgdict
+    global vVars
+    global nVars
+    n = 0
+    for val in vVars:
+        if vVars[val].get() != 0:
+            lname = nVars[n].get().split(":")[0]
+            imgdict[imgcount]['lbl'][indcount].append(lname)
+            imgdict[imgcount]['val'][indcount].append(vVars[val].get())
+        n += 1
+    for i in range(len(lbls)):
+        vVars[i].set(0)
+        sVars[i].set(0)
+        nVars[i].set(lbls[i]['name'])
+    #print(imgdict[imgcount])       
+#pickles image dictionary entry 
+def pklImg():
+    print("Didn't pickle image #%d."%(imgcount+1))
+    __selMode("BB")
+    if imgcount != len(lims)-1:
+        nextImg()
+    else:
+        backImg()
+        nextImg()
+#pickles all unsaved images and exits
+def saveAll():
+    print("Didn't save all images.")
+    m.quit()
 #print selection/value variables for debug purposes
 def __printVars():
     global sVars
@@ -451,7 +552,7 @@ def __printVars():
             print("Couldn't get val var %s"%vVars[v])
 
 #open window in top left of screen
-def __topleft_window(width=750, height=630):
+def __topleft_window(width=750, height=660):
     # get screen width and height
     screen_width = m.winfo_screenwidth()
     screen_height = m.winfo_screenheight()
@@ -472,16 +573,14 @@ lblinfopath = os.path.join(cdir, "labels", "labels.txt")
 lims = os.listdir(idir) #images files to label
 imgdict, inds = {}, {} #Image Dictionary Attributes: img, box, lbl, val
 images = [] #temporary storage for Tkinter images
-imgcount = 0
+imgcount, indcount = 0, 0
 for im in lims:
-    imgdict[imgcount] = {"img":np.asarray(Image.open(os.path.join(idir, im))), "box":[]}
-    inds[imgcount] = [] #storage for individuals per image
+    imgdict[imgcount] = {"img":np.asarray(Image.open(os.path.join(idir, im))), "box":[], "lbl":[], "val":[]}
+    inds[imgcount] = [] #storage dictionary for individual images
     images.append(ImageTk.PhotoImage(Image.open(os.path.join(idir, im)).resize((512,512)))) #should Image.fromarray(imgdict[imgcount]['img']).resize((512, 512)) be used instead of opening?
     imgcount += 1
 imgcount = 0
 loc1, loc2 = (0, 0), (0, 0) #storage containers for cursor locations
-print("Current Directory: %s"%cdir)
-#print("There are %d images to label."%len(images))
 
 modeButts = LabelFrame(m, text="Label Mode", bd=0, labelanchor=N) #mode selector top bar
 modeButts.grid(row=0, column=0, columnspan=2, sticky="nsew")
@@ -490,10 +589,9 @@ modeButts.grid_columnconfigure(1, weight=1)
 
 bbButt = Button(modeButts, text="Bounding Boxes", command=lambda : __selMode("BB"))
 bbButt.grid(row=0, column=0, sticky="nsew")
-lblButt = Button(modeButts, text="Symptom Labels", command=lambda : __selMode("SL"))
+lblButt = Button(modeButts, text="Symptom Labels", command=lambda : __selMode("SL"), state=DISABLED)
 lblButt.grid(row=0, column=1, sticky="nsew")
 
-#image/label frames
 imgFrame = Frame(m, padx=2)
 imgFrame.grid(row=1, column=0)
 lblFrame = LabelFrame(m, padx=2)
@@ -505,29 +603,27 @@ imgCanvas = Canvas(imgFrame, width=512, height=512)
 imgCanvas.create_image(0, 0, image=images[0], anchor=NW)
 imgCanvas.grid(row=0, column=0, columnspan=2)
 
-backImgButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=20, pady=15)
-backImgButt.grid(row=1, column=0, sticky="nsew")
-nextImgButt = Button(imgFrame, text="Next Image", command=nextImg, padx=20, pady=15)
-nextImgButt.grid(row=1, column=1, sticky="nsew")
+prevButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=15, pady=15)
+nextButt = Button(imgFrame, text="Next Image", command=nextImg, padx=15, pady=15)
+prevButt.grid(row=1, column=0, sticky="nsew")
+nextButt.grid(row=1, column=1, sticky="nsew")
 
-statusBar = LabelFrame(m, text="Help") #image progress and directions displayer
+statusBar = LabelFrame(imgFrame, text="Help") #image progress and directions displayer
 statusBar.grid(row=2, column=0, columnspan=2, sticky="nsew")
-statusBar.grid_columnconfigure(0, weight=1)
-statusBar.grid_columnconfigure(1, weight=1)
 helpStatus = Label(statusBar, text="This is where help info goes.", anchor=W, bd=1)
 helpStatus.grid(row=0, column=0, sticky="nsew")
-imgStatus = Label(statusBar, text="Image 1 of 3.", anchor=E, bd=1)
-imgStatus.grid(row=0, column=1, sticky="nsew")
 
 addBBButt = Button(lblFrame, text="Add Bounding Box", command=add_bb, padx=20, pady=15)
-remBBButt = Button(lblFrame, text="Remove Bounding Box", command=rem_bb, padx=20, pady=15)
-lblIndsButt = Button(lblFrame, text="Label Individuals", command=lbl_inds, padx=5, pady=15)
+remBBButt = Button(lblFrame, text="Remove Bounding Box", command=rem_bb, padx=20, pady=15, state=DISABLED)
+lblIndsButt = Button(lblFrame, text="Label Individuals", command=lambda: __selMode("SL"), padx=5, pady=15, state=DISABLED)
   
-lbls = __parseLbls(lblinfopath) #parsing labels.txt 
+lbls = __parseLbls(lblinfopath) #labels.txt dictionary
 
 lFrames, sVars, vVars, nVars = {}, {}, {}, {} #label frame storage
 
-__topleft_window(750, 630)
+#m.resizable(True, True)
+__topleft_window(750, 660)
+__selMode("BB")
 m.mainloop()
 
 #example image dictionary entry
