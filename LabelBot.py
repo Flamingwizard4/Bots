@@ -7,9 +7,7 @@
 # add video functionality with pause/clip buttons in vidFrame
 # add image examples w/ categories/slideshow in lframe
 # add hyperlink section
-# when displaying images check for img_bounded.csv in directory?
-# save symptoms as multiple one-hot vectors with values from 0 to 1 in img_labeled.csv
-# add save and exit button in between last/next image buttons instead of turning next to exit
+# when displaying images check for pickle in directory?
 # add dialog box for optional deleting of old images in directory
 ##
 import os, re, math
@@ -50,7 +48,7 @@ def nextImg(indMode=False):
     else: #image mode
         if sVars:
             __clrVars()
-        indcount = 0
+            indcount = 0
         imgcount += 1
         if not inds[imgcount]:
             lblButt.config(state=DISABLED)
@@ -102,7 +100,7 @@ def backImg(indMode=False):
     else: #image mode
         if sVars:
             __clrVars()
-        indcount = 0
+            indcount = 0
         imgcount -= 1
         if not inds[imgcount]:
             lblButt.config(state=DISABLED)
@@ -165,7 +163,7 @@ def __save_bb(event):
     imgCanvas.config(cursor='')
     remBBButt.config(state=NORMAL)
     lblIndsButt.config(state=NORMAL)
-    helpStatus.config(text="Bounding box saved.")
+    helpStatus.config(text="Bounding box saved. Click on \"Label Individuals\" when finished.")
     #print(loc1, loc2)
 #remove BB button
 def rem_bb():
@@ -541,6 +539,7 @@ def __selMode(mode):
         __lbl_inds()
         helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
 
+'''Data:'''
 #print selection/value variables for debug purposes
 def __printVars():
     global nVars
@@ -591,6 +590,9 @@ def pklAll():
             __pklImg(n_image)
     print("Done.")
     m.quit()
+#print pickle files for debug purposes
+def readPkl():
+    pass
 
 #open window in top left of screen
 def __topleft_window(width=750, height=660):
@@ -622,19 +624,16 @@ for im in lims:
     imgcount += 1
 imgcount = 0
 loc1, loc2 = (0, 0), (0, 0) #storage containers for cursor locations
-
 #labeling mode button frame/configuration
 modeButts = LabelFrame(m, text="Label Mode", bd=0, labelanchor=N) #mode selector top bar
 modeButts.grid(row=0, column=0, columnspan=2, sticky="nsew")
 modeButts.grid_columnconfigure(0, weight=1)
 modeButts.grid_columnconfigure(1, weight=1)
-
 #labeling mode buttons
 bbButt = Button(modeButts, text="Bounding Boxes", command=lambda : __selMode("BB"))
 bbButt.grid(row=0, column=0, sticky="nsew")
 lblButt = Button(modeButts, text="Symptom Labels", command=lambda : __selMode("SL"), state=DISABLED)
 lblButt.grid(row=0, column=1, sticky="nsew")
-
 #image/labels column configuration
 imgFrame = Frame(m, padx=2)
 imgFrame.grid(row=1, column=0)
@@ -642,7 +641,6 @@ lblFrame = LabelFrame(m, padx=2)
 lblFrame.grid(row=1, column=1, sticky="nsew")
 m.grid_columnconfigure(1, weight=1)
 lblFrame.grid_columnconfigure(0, weight=1)
-
 #image canvaas
 imgCanvas = Canvas(imgFrame, width=512, height=512)
 imgCanvas.create_image(0, 0, image=images[0], anchor=NW)
@@ -652,23 +650,19 @@ prevButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=15, pady=15)
 nextButt = Button(imgFrame, text="Next Image", command=nextImg, padx=15, pady=15)
 prevButt.grid(row=1, column=0, sticky="nsew")
 nextButt.grid(row=1, column=1, sticky="nsew")
-
 #help bar
 helpBar = LabelFrame(imgFrame, text="Help") #image progress and directions displayer
 helpBar.grid(row=2, column=0, columnspan=2, sticky="nsew")
 helpStatus = Label(helpBar, text="This is where help info goes.", anchor=W, bd=1)
 helpStatus.grid(row=0, column=0, sticky="nsew")
-
 #bounding box buttons
 addBBButt = Button(lblFrame, text="Add Bounding Box", command=add_bb, padx=20, pady=15)
 remBBButt = Button(lblFrame, text="Remove Bounding Box", command=rem_bb, padx=20, pady=15, state=DISABLED)
 lblIndsButt = Button(lblFrame, text="Label Individuals", command=lambda: __selMode("SL"), padx=5, pady=15, state=DISABLED)
-
 #labels.txt dictionary  
 lbls = __parseLbls(lblinfopath) 
 #label frame storage
 lFrames, sVars, vVars, nVars = {}, {}, {}, {} 
-
 #m.resizable(True, True)
 __topleft_window(750, 660)
 __selMode("BB")
@@ -682,7 +676,6 @@ m.mainloop()
     "lbl":lblnames,
     "val: lblvec
 }
-
 To Choose Video to Annotate:
 filedialog.askopenfilename(initialdir="/", title="Select Video File (mp3/mp4)",
                            filetypes=(("videos", ".mp3 .mp4"), ("all files", "*.*"))) #this might have to be separated with same "videos" name e.g. ("videos", ".mp4")
