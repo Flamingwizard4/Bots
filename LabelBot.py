@@ -20,7 +20,7 @@ from time import sleep
 import numpy as np
 import tkinter.scrolledtext as tkst
 
-'''METHODS:'''
+'''Image Buttons:'''
 #go to next image    
 def nextImg(indMode=False):
     global imgCanvas
@@ -34,15 +34,22 @@ def nextImg(indMode=False):
         imgCanvas.grid_forget()    
         imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
-        helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
-        if indcount == len(inds[imgcount])-1:
-            nextButt.config(text="Save Image")
-            nextButt.config(command=pklImg)
-        else:
+        if len(inds[imgcount]) != 1:
             nextButt.config(text="Next Individual")
             nextButt.config(command=lambda: nextImg(True))
+        elif len(images) == imgcount:
+            nextButt.config(text="Save & Exit")
+            nextButt.config(command=pklAll)
+        if indcount == len(inds[imgcount])-1:
+            nextButt.config(text="Next Image")
+            nextButt.config(command=nextImg)
+        prevButt.config(command=lambda: backImg(True))
         prevButt.config(state=NORMAL)
+        prevButt.config(text="Previous Individual")
+        helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
     else: #image mode
+        if sVars:
+            __clrVars()
         indcount = 0
         imgcount += 1
         if not inds[imgcount]:
@@ -54,15 +61,18 @@ def nextImg(indMode=False):
         imgCanvas.grid_forget()    
         imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
-        helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
-        if imgcount == len(lims) - 1:
+        if imgcount == len(images) - 1:
             nextButt.config(text="Save & Exit")
-            nextButt.config(command=saveAll)           
+            nextButt.config(command=pklAll)
         else:
             nextButt.config(text="Next Image")
             nextButt.config(command=nextImg)
-            prevButt.config(state=NORMAL) 
+        prevButt.config(state=NORMAL)
+        prevButt.config(command=backImg)
+        prevButt.config(text="Previous Image")
+        __selMode("BB")
         __refreshImg()
+        helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
 #go to previous image    
 def backImg(indMode=False):
     global imgCanvas
@@ -76,13 +86,22 @@ def backImg(indMode=False):
         imgCanvas.grid_forget()    
         imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
-        if indcount == 0:
+        if imgcount == 0:
             prevButt.config(state=DISABLED)
-        if indcount != len(inds[imgcount]):
-            nextButt.config(text="Next Individual")
-            nextButt.config(command= lambda: nextImg(True))
+        else:
+            prevButt.config(state=NORMAL)
+        if indcount != 0:
+            prevButt.config(command=lambda: backImg(True))
+            prevButt.config(text="Previous Individual")
+        else:
+            prevButt.config(command = backImg)
+            prevButt.config(text="Previous Image")
+        nextButt.config(text="Next Individual")
+        nextButt.config(command= lambda: nextImg(True))
         helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
     else: #image mode
+        if sVars:
+            __clrVars()
         indcount = 0
         imgcount -= 1
         if not inds[imgcount]:
@@ -99,12 +118,15 @@ def backImg(indMode=False):
             prevButt.config(state=DISABLED)
         else:
             prevButt.config(state=NORMAL)
-        if imgcount != len(lims) - 1:
-            nextButt.config(text="Next Image")
-            nextButt.config(command=nextImg)   
+        nextButt.config(text="Next Image")
+        nextButt.config(command=nextImg)
+        prevButt.config(text="Previous Image")
+        prevButt.config(command=backImg)
+        __selMode("BB")
         __refreshImg()
-           
-#add BB button com
+
+'''Bounding Boxes:'''           
+#add BB button
 def add_bb():
     imgCanvas.bind('<Button-1>', __start_bb)
     imgCanvas.bind('<ButtonRelease-1>', __save_bb)
@@ -125,7 +147,7 @@ def __draw_bb(event):
     csrLoc = (event.x, event.y)
     coords = [loc1[0], loc1[1], csrLoc[0], csrLoc[1]] #can I make this a tuple?
     imgCanvas.create_rectangle(coords, outline="red", fill="", width=3)
-#save BBs
+#save BB and create individual imgdict entry
 def __save_bb(event):
     global loc1
     global loc2
@@ -145,7 +167,7 @@ def __save_bb(event):
     lblIndsButt.config(state=NORMAL)
     helpStatus.config(text="Bounding box saved.")
     #print(loc1, loc2)
-#remove BB button com
+#remove BB button
 def rem_bb():
     imgCanvas.bind('<Button-1>', __del_bb)
     imgCanvas.config(cursor="pirate")
@@ -183,6 +205,7 @@ def __refreshImg():
     for loc in imgdict[imgcount]['box']:
         imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
 
+'''Labels:'''
 #parse labels.txt - NOTE: user needs to have spaces after "LABEL:" & "INFO:"
 def __parseLbls(path):
     labels = [] #list of label dictionaries
@@ -400,7 +423,7 @@ def extend(n):
 def retract():
     __clrLbls()
     __addLbls()
-    helpStatus.config(text="Labeling Interface.")
+    helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
     #__printVars()
 #select label
 def selLbl(n):
@@ -443,6 +466,7 @@ def selSld(n):
     nVars[n].set(name+": %0.2f"%val)
     helpStatus.config(text="Set value of "+name+" to %0.2f"%val)
 
+'''Labeling Modes:'''
 #draw bounding boxes mode
 def __bnd_inds():
     global imgCanvas
@@ -457,6 +481,9 @@ def __bnd_inds():
         prevButt.config(state=NORMAL)
     else:
         prevButt.config(state=DISABLED)
+    if len(images) - 1 == imgcount:
+        nextButt.config(text="Save & Exit")
+        nextButt.config(command=pklAll)
     prevButt.grid(row=1, column=0, sticky="nsew")
     nextButt.grid(row=1, column=1, sticky="nsew")    
 #label individuals mode
@@ -469,14 +496,22 @@ def __lbl_inds():
     if len(inds[imgcount]) != 1:
         nextButt.config(text="Next Individual")
         nextButt.config(command=lambda: nextImg(True))
-    else:
-        nextButt.config(text="Save Image")
-        nextButt.config(command=pklImg)
-    prevButt.config(text="Previous Individual")
-    if indcount != 0:
+    elif len(images) - 1 == imgcount:
+        nextButt.config(text="Save & Exit")
+        nextButt.config(command=pklAll)
+    elif len(inds[imgcount]) - 1 == indcount:
+        nextButt.config(text="Next Image")
+        nextButt.config(command=nextImg)
+    if imgcount != 0:
         prevButt.config(state=NORMAL)
     else:
         prevButt.config(state=DISABLED)
+    if indcount != 0:
+        prevButt.config(command=lambda: backImg(True))
+        prevButt.config(text="Previous Individual")
+    else:
+        prevButt.config(command = backImg)
+        prevButt.config(text="Previous Image")
     prevButt.grid(row=1, column=0, sticky="nsew")
     nextButt.grid(row=1, column=1, sticky="nsew")
     #change labels to save per individual   
@@ -504,9 +539,24 @@ def __selMode(mode):
         __clrLbls()
         __addLbls()
         __lbl_inds()
-        helpStatus.config(text="Labeling Interface.")
+        helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
 
-#append variables to imgdict and clear
+#print selection/value variables for debug purposes
+def __printVars():
+    global nVars
+    global vVars
+    global sVars
+    print("Variables:")
+    for s in range(sVars):
+            try:
+                if sVars[s].get() == 1:
+                    print("%s: %d"%(nVars[s].get(), vVars[s].get()))
+            except:
+                try:
+                    print("Couldn't get variables for %s"%nVars[s]) 
+                except:
+                    print("Couldn't get variables #%d"%s) 
+#clear/save variables to imgdict
 def __clrVars():
     global imgdict
     global vVars
@@ -524,32 +574,23 @@ def __clrVars():
         nVars[i].set(lbls[i]['name'])
     #print(imgdict[imgcount])       
 #pickles image dictionary entry 
-def pklImg():
-    print("Didn't pickle image #%d."%(imgcount+1))
-    __selMode("BB")
-    if imgcount != len(lims)-1:
-        nextImg()
-    else:
-        backImg()
-        nextImg()
+def __pklImg(imgNum):
+    try:
+        #print("Trying to pickle image #%d: %s"%(imgNum, "".join(lims[imgNum].rsplit(".", 1))))
+        if os.path.isfile(os.path.join(cdir, "pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1)))): #wiping previous pickle versions
+            #print("Removing old version...")
+            os.remove(os.path.join(cdir, "pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1))))
+        with open("pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1)),"wb") as pickle_out: #writing new pickles
+            pickle.dump(imgdict[imgNum], pickle_out)
+    except:
+        print("Couldn't pickle img #%d: %s"%(imgNum, "".join(lims[imgNum].rsplit(".", 1))))
 #pickles all unsaved images and exits
-def saveAll():
-    print("Didn't save all images.")
+def pklAll():
+    for n_image in imgdict: #check each image for whether any labels were selected
+        if imgdict[n_image]['val']:
+            __pklImg(n_image)
+    print("Done.")
     m.quit()
-#print selection/value variables for debug purposes
-def __printVars():
-    global sVars
-    global vVars
-    for s in sVars:
-        try:
-            print("Selection Variable #%d"%s, sVars[s].get())
-        except:
-            print("Couldn't get sel var %s"%sVars[s]) 
-    for v in vVars:
-        try:
-            print("Value Variable #%d"%v, vVars[v].get())
-        except:
-            print("Couldn't get val var %s"%vVars[v])
 
 #open window in top left of screen
 def __topleft_window(width=750, height=660):
@@ -582,16 +623,19 @@ for im in lims:
 imgcount = 0
 loc1, loc2 = (0, 0), (0, 0) #storage containers for cursor locations
 
+#labeling mode button frame/configuration
 modeButts = LabelFrame(m, text="Label Mode", bd=0, labelanchor=N) #mode selector top bar
 modeButts.grid(row=0, column=0, columnspan=2, sticky="nsew")
 modeButts.grid_columnconfigure(0, weight=1)
 modeButts.grid_columnconfigure(1, weight=1)
 
+#labeling mode buttons
 bbButt = Button(modeButts, text="Bounding Boxes", command=lambda : __selMode("BB"))
 bbButt.grid(row=0, column=0, sticky="nsew")
 lblButt = Button(modeButts, text="Symptom Labels", command=lambda : __selMode("SL"), state=DISABLED)
 lblButt.grid(row=0, column=1, sticky="nsew")
 
+#image/labels column configuration
 imgFrame = Frame(m, padx=2)
 imgFrame.grid(row=1, column=0)
 lblFrame = LabelFrame(m, padx=2)
@@ -599,34 +643,38 @@ lblFrame.grid(row=1, column=1, sticky="nsew")
 m.grid_columnconfigure(1, weight=1)
 lblFrame.grid_columnconfigure(0, weight=1)
 
+#image canvaas
 imgCanvas = Canvas(imgFrame, width=512, height=512)
 imgCanvas.create_image(0, 0, image=images[0], anchor=NW)
 imgCanvas.grid(row=0, column=0, columnspan=2)
-
+#image buttons
 prevButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=15, pady=15)
 nextButt = Button(imgFrame, text="Next Image", command=nextImg, padx=15, pady=15)
 prevButt.grid(row=1, column=0, sticky="nsew")
 nextButt.grid(row=1, column=1, sticky="nsew")
 
-statusBar = LabelFrame(imgFrame, text="Help") #image progress and directions displayer
-statusBar.grid(row=2, column=0, columnspan=2, sticky="nsew")
-helpStatus = Label(statusBar, text="This is where help info goes.", anchor=W, bd=1)
+#help bar
+helpBar = LabelFrame(imgFrame, text="Help") #image progress and directions displayer
+helpBar.grid(row=2, column=0, columnspan=2, sticky="nsew")
+helpStatus = Label(helpBar, text="This is where help info goes.", anchor=W, bd=1)
 helpStatus.grid(row=0, column=0, sticky="nsew")
 
+#bounding box buttons
 addBBButt = Button(lblFrame, text="Add Bounding Box", command=add_bb, padx=20, pady=15)
 remBBButt = Button(lblFrame, text="Remove Bounding Box", command=rem_bb, padx=20, pady=15, state=DISABLED)
 lblIndsButt = Button(lblFrame, text="Label Individuals", command=lambda: __selMode("SL"), padx=5, pady=15, state=DISABLED)
-  
-lbls = __parseLbls(lblinfopath) #labels.txt dictionary
 
-lFrames, sVars, vVars, nVars = {}, {}, {}, {} #label frame storage
+#labels.txt dictionary  
+lbls = __parseLbls(lblinfopath) 
+#label frame storage
+lFrames, sVars, vVars, nVars = {}, {}, {}, {} 
 
 #m.resizable(True, True)
 __topleft_window(750, 660)
 __selMode("BB")
 m.mainloop()
 
-#example image dictionary entry
+#Example Image Dictionary Entry:
 '''
 {
     "img":nparr,
@@ -635,7 +683,7 @@ m.mainloop()
     "val: lblvec
 }
 
-for choosing video to annotate:
+To Choose Video to Annotate:
 filedialog.askopenfilename(initialdir="/", title="Select Video File (mp3/mp4)",
-                           filetypes=(("videos", ".mp3 .mp4"), ("all files", "*.*"))) #this might have to be separated with same "videos" name
+                           filetypes=(("videos", ".mp3 .mp4"), ("all files", "*.*"))) #this might have to be separated with same "videos" name e.g. ("videos", ".mp4")
 '''
