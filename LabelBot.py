@@ -2,8 +2,8 @@
 
 ##LabelBot - GUI for rapid dataset creation
 #
+# TODO:
 # pipeline from SearchBot
-#
 # add video functionality with pause/clip buttons in vidFrame
 # add image examples w/ categories/slideshow in lframe
 # add hyperlink section
@@ -11,7 +11,7 @@
 # add dialog box for optional deleting of old images in directory
 ##
 import os, re, math
-import pickle
+import pickle, cv2
 from tkinter import *
 from PIL import ImageTk, Image, ImageDraw
 from time import sleep
@@ -29,7 +29,9 @@ def nextImg(indMode=False):
         indcount += 1
         __clrLbls()
         __addLbls()
-        imgCanvas.grid_forget()    
+        imgCanvas.grid_forget()
+        imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
+        imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))
         imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
         if len(inds[imgcount]) != 1:
@@ -56,7 +58,9 @@ def nextImg(indMode=False):
         else:
             lblButt.config(state=NORMAL)
             lblIndsButt.config(state=NORMAL)
-        imgCanvas.grid_forget()    
+        imgCanvas.grid_forget()
+        imgCanvas.config(width=imgdict[imgcount]['img'].shape[1])
+        imgCanvas.config(height=imgdict[imgcount]['img'].shape[0])
         imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
         if imgcount == len(images) - 1:
@@ -81,7 +85,9 @@ def backImg(indMode=False):
         indcount -= 1
         __clrLbls()
         __addLbls()
-        imgCanvas.grid_forget()    
+        imgCanvas.grid_forget()
+        imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
+        imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))    
         imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
         if imgcount == 0:
@@ -108,7 +114,9 @@ def backImg(indMode=False):
         else:
             lblButt.config(state=NORMAL)
             lblIndsButt.config(state=NORMAL)
-        imgCanvas.grid_forget()    
+        imgCanvas.grid_forget()
+        imgCanvas.config(width=imgdict[imgcount]['img'].shape[1])
+        imgCanvas.config(height=imgdict[imgcount]['img'].shape[0])     
         imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
         imgCanvas.grid(row=0, column=0, columnspan=2)
         helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
@@ -122,6 +130,11 @@ def backImg(indMode=False):
         prevButt.config(command=backImg)
         __selMode("BB")
         __refreshImg()
+#video functionality
+def vidCap(vidpath):
+    cap = cv2.VideoCapture(vidpath)
+    print("Success opening %s: %s"%(vidpath, cap.isOpened()))
+    
 
 '''Bounding Boxes:'''           
 #add BB button
@@ -154,10 +167,10 @@ def __save_bb(event):
     imgCanvas.unbind('<ButtonRelease-1>')
     loc2 = (event.x, event.y)
     imgdict[imgcount]['box'].append([loc1[0], loc1[1], loc2[0], loc2[1]]) #save BB coords for image
-    im = Image.fromarray(imgdict[imgcount]['img']).resize((512, 512))
+    im = Image.fromarray(imgdict[imgcount]['img'])
     coords = (loc1[0], loc1[1], loc2[0], loc2[1]) #4-tuple form for cropping
     im = im.crop(coords)
-    inds[imgcount].append(ImageTk.PhotoImage(im.resize((512, 512)))) #append cropped image to inds dictionary for Tk storage
+    inds[imgcount].append(ImageTk.PhotoImage(im)) #append cropped image to inds dictionary for Tk storage used to be .resize((512, 512))
     imgdict[imgcount]['lbl'].append([])
     imgdict[imgcount]['val'].append([])
     imgCanvas.config(cursor='')
@@ -204,7 +217,7 @@ def __refreshImg():
         imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
 
 '''Labels:'''
-#parse labels.txt - NOTE: user needs to have spaces after "LABEL:" & "INFO:"
+#parse labels.txt - Note: user needs to have spaces after "LABEL:" & "INFO:", e.g. "LABEL: "
 def __parseLbls(path):
     labels = [] #list of label dictionaries
     textlines = [] #list of lines in label
@@ -248,9 +261,9 @@ def __parseLbls(path):
                         name = " ".join(name)
                         if "(" in line:
                             opt = re.sub("\n", "", line.split("(")[1][:-2])
-                            name = name.split("(")[0][:-1]#hopefully this works
+                            name = name.split("(")[0][:-1]
                 elif "INFO:" in line:
-                    desc = line[5:]#could be [4:]
+                    desc = line[5:]#could be [4:]?
                 elif "EXAM:" in line:
                     exam = line[5:]
                 else:
@@ -488,6 +501,8 @@ def __bnd_inds():
 def __lbl_inds():
     global imgCanvas
     imgCanvas.grid_forget()
+    imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
+    imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))
     imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
     imgCanvas.grid(row=0, column=0, columnspan=2)
     prevButt.config(command=lambda: backImg(True))
@@ -516,7 +531,6 @@ def __lbl_inds():
 #switch between bounding box and labeling modes
 def __selMode(mode):
     if mode == "BB":
-        m.geometry("750x660")
         lblButt.config(relief=RAISED)
         bbButt.config(relief=SUNKEN)
         if len(lFrames) != 0:
@@ -527,9 +541,8 @@ def __selMode(mode):
         lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
         __bnd_inds()
         __refreshImg()
-        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\" button.")
+        helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
     elif mode == "SL":
-        m.geometry("775x685")
         lblButt.config(state=NORMAL)
         bbButt.config(relief=RAISED)
         lblButt.config(relief=SUNKEN)
@@ -575,12 +588,11 @@ def __clrVars():
 #pickles image dictionary entry 
 def __pklImg(imgNum):
     try:
-        #print("Trying to pickle image #%d: %s"%(imgNum, "".join(lims[imgNum].rsplit(".", 1))))
         if os.path.isfile(os.path.join(cdir, "pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1)))): #wiping previous pickle versions
-            #print("Removing old version...")
             os.remove(os.path.join(cdir, "pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1))))
-        with open("pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1)),"wb") as pickle_out: #writing new pickles
+        with open("pickles/%s.pickle"%"".join(lims[imgNum].rsplit(".", 1)),"wb") as pickle_out: #new pickles
             pickle.dump(imgdict[imgNum], pickle_out)
+            print("Saving image #%d."%imgNum)
     except:
         print("Couldn't pickle img #%d: %s"%(imgNum, "".join(lims[imgNum].rsplit(".", 1))))
 #pickles all unsaved images and exits
@@ -618,9 +630,16 @@ imgdict, inds = {}, {} #Image Dictionary Attributes: img, box, lbl, val
 images = [] #temporary storage for Tkinter images
 imgcount, indcount = 0, 0
 for im in lims:
-    imgdict[imgcount] = {"img":np.asarray(Image.open(os.path.join(idir, im))), "box":[], "lbl":[], "val":[]}
+    img = Image.open(os.path.join(idir, im))
+    w, h = img.size #print("Image #%d initial dimensions: %dx%d"%(imgcount, w, h))
+    if w > h: #scaling images
+        fac = 512/w
+    else:
+        fac = 512/h
+    img = img.resize((int(w*fac),int(h*fac)))
+    imgdict[imgcount] = {"img":np.asarray(img), "box":[], "lbl":[], "val":[]}
     inds[imgcount] = [] #storage dictionary for individual images
-    images.append(ImageTk.PhotoImage(Image.open(os.path.join(idir, im)).resize((512,512)))) #should Image.fromarray(imgdict[imgcount]['img']).resize((512, 512)) be used instead of opening?
+    images.append(ImageTk.PhotoImage(img)) #should Image.fromarray(imgdict[imgcount]['img']).resize((512, 512)) be used instead of opening?
     imgcount += 1
 imgcount = 0
 loc1, loc2 = (0, 0), (0, 0) #storage containers for cursor locations
@@ -642,9 +661,10 @@ lblFrame.grid(row=1, column=1, sticky="nsew")
 m.grid_columnconfigure(1, weight=1)
 lblFrame.grid_columnconfigure(0, weight=1)
 #image canvaas
-imgCanvas = Canvas(imgFrame, width=512, height=512)
+imgCanvas = Canvas(imgFrame, width=imgdict[0]['img'].shape[1], height=imgdict[0]['img'].shape[0])
 imgCanvas.create_image(0, 0, image=images[0], anchor=NW)
 imgCanvas.grid(row=0, column=0, columnspan=2)
+#print("Dimensions: ", imgdict[0]['img'].shape)
 #image buttons
 prevButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=15, pady=15)
 nextButt = Button(imgFrame, text="Next Image", command=nextImg, padx=15, pady=15)
@@ -666,10 +686,12 @@ lFrames, sVars, vVars, nVars = {}, {}, {}, {}
 #m.resizable(True, True)
 __topleft_window(750, 660)
 __selMode("BB")
+
+vidCap(os.path.join(cdir, "labels", "unlabeled_videos", "HerdingCattleWithaDrone.mp4"))
+
 m.mainloop()
 
-#Example Image Dictionary Entry:
-'''
+'''Example Image Dictionary Entry:
 {
     "img":nparr,
     "box":coordlist,
