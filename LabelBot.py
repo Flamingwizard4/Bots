@@ -21,19 +21,30 @@ import tkinter.scrolledtext as tkst
 '''Image Buttons:'''
 #go to next image    
 def nextImg(indMode=False):
+    global vidLabel
     global imgCanvas
     global imgcount
     global indcount
+    global n_im
     if indMode:
         __clrVars()
         indcount += 1
         __clrLbls()
         __addLbls()
-        imgCanvas.grid_forget()
-        imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
-        imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))
-        imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
-        imgCanvas.grid(row=0, column=0, columnspan=2)
+        if isinstance(images[imgcount], list): #individual video labeling
+            imgCanvas.grid_forget()
+            #imgCanvas.config(width=abs(imgdict[imgcount]['box'][n_im][indcount][2] -imgdict[imgcount]['box'][n_im][indcount][0]))
+            #imgCanvas.config(height=abs(imgdict[imgcount]['box'][n_im][indcount][3] -imgdict[imgcount]['box'][n_im][indcount][1]))=
+            __setVid()
+            __refresh_bb()
+            imgCanvas.grid(row=0, column=0, columnspan=4)
+            __selMode("BB")
+        else:
+            imgCanvas.grid_forget()
+            imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
+            imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))
+            imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
+            imgCanvas.grid(row=0, column=0, columnspan=2)
         if len(inds[imgcount]) != 1:
             nextButt.config(text="Next Individual")
             nextButt.config(command=lambda: nextImg(True))
@@ -44,56 +55,76 @@ def nextImg(indMode=False):
             nextButt.config(text="Next Image")
             nextButt.config(command=nextImg)
         prevButt.config(command=lambda: backImg(True))
-        prevButt.config(state=NORMAL)
         prevButt.config(text="Previous Individual")
         helpStatus.config(text="Labeling Individual %d of %d."%(indcount+1, len(inds[imgcount])))
     else: #image mode
         if sVars:
             __clrVars()
             indcount = 0
+        if not isinstance(images[imgcount], list):
+            imgCanvas.grid_forget()
         imgcount += 1
-        if not inds[imgcount]:
-            lblButt.config(state=DISABLED)
-            lblIndsButt.config(state=DISABLED)
+        if isinstance(images[imgcount], list): #vid/image transition
+            for w in imgFrame.winfo_children(): #what about selVid mode??
+                w.grid_forget()
+            vidLabel.config(image=images[imgcount][n_im])
+            __setVid()
         else:
-            lblButt.config(state=NORMAL)
-            lblIndsButt.config(state=NORMAL)
-        imgCanvas.grid_forget()
-        imgCanvas.config(width=imgdict[imgcount]['img'].shape[1])
-        imgCanvas.config(height=imgdict[imgcount]['img'].shape[0])
-        imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-        imgCanvas.grid(row=0, column=0, columnspan=2)
+            imgCanvas.config(width=imgdict[imgcount]['img'].shape[1])
+            imgCanvas.config(height=imgdict[imgcount]['img'].shape[0])
+            imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+            imgCanvas.grid(row=0, column=0, columnspan=2)
+            if not inds[imgcount]:
+                lblButt.config(state=DISABLED)
+                lblIndsButt.config(state=DISABLED)
+            else:
+                lblButt.config(state=NORMAL)
+                lblIndsButt.config(state=NORMAL)
         if imgcount == len(images) - 1:
             nextButt.config(text="Save & Exit")
             nextButt.config(command=pklAll)
         else:
             nextButt.config(text="Next Image")
             nextButt.config(command=nextImg)
-        prevButt.config(state=NORMAL)
         prevButt.config(command=backImg)
         prevButt.config(text="Previous Image")
         __selMode("BB")
-        __refreshImg()
         helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
+        __refresh_bb()
+    prevButt.config(state=NORMAL)
 #go to previous image    
 def backImg(indMode=False):
+    global vidLabel
     global imgCanvas
     global imgcount
     global indcount
+    global n_im
     if indMode:
         __clrVars()
         indcount -= 1
         __clrLbls()
         __addLbls()
-        imgCanvas.grid_forget()
-        imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
-        imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))    
-        imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
-        imgCanvas.grid(row=0, column=0, columnspan=2)
-        if imgcount == 0:
-            prevButt.config(state=DISABLED)
+        if isinstance(images[imgcount], list): #individual video labeling
+            imgCanvas.grid_forget()
+            #imgCanvas.config(width=abs(imgdict[imgcount]['box'][n_im][indcount][2] -imgdict[imgcount]['box'][n_im][indcount][0]))
+            #imgCanvas.config(height=abs(imgdict[imgcount]['box'][n_im][indcount][3] -imgdict[imgcount]['box'][n_im][indcount][1]))
+            imgCanvas.create_image(0, 0, image=images[imgcount][n_im], anchor=NW)
+            for t in range(10,0,-1):
+                try:
+                    if inds[imgcount][n_im-t]:
+                        x = abs(imgdict[imgcount]['box'][n_im][indcount][2] + imgdict[imgcount]['box'][n_im][indcount][0])/2
+                        y = abs(imgdict[imgcount]['box'][n_im][indcount][3] + imgdict[imgcount]['box'][n_im][indcount][1])/2
+                        imgCanvas.create_text(x, y, text="%d"%indcount, anchor=W, font="Purisa")
+                except:
+                    continue
+            imgCanvas.grid(row=0, column=0, columnspan=2)
+            __selMode("BB")
         else:
-            prevButt.config(state=NORMAL)
+            imgCanvas.grid_forget()
+            imgCanvas.config(width=abs(imgdict[imgcount]['box'][indcount][2] -imgdict[imgcount]['box'][indcount][0]))
+            imgCanvas.config(height=abs(imgdict[imgcount]['box'][indcount][3] -imgdict[imgcount]['box'][indcount][1]))
+            imgCanvas.create_image(0, 0, image=inds[imgcount][indcount], anchor=NW)
+            imgCanvas.grid(row=0, column=0, columnspan=2)
         if indcount != 0:
             prevButt.config(command=lambda: backImg(True))
             prevButt.config(text="Previous Individual")
@@ -107,38 +138,169 @@ def backImg(indMode=False):
         if sVars:
             __clrVars()
             indcount = 0
+        if not isinstance(images[imgcount], list):
+            imgCanvas.grid_forget()
         imgcount -= 1
-        if not inds[imgcount]:
-            lblButt.config(state=DISABLED)
-            lblIndsButt.config(state=DISABLED)
+        if isinstance(images[imgcount], list): #vid/image transition
+            for w in imgFrame.winfo_children(): #what about selVid mode??
+                w.grid_forget()
+            vidLabel.config(image=images[imgcount][n_im])
+            __setVid()
         else:
-            lblButt.config(state=NORMAL)
-            lblIndsButt.config(state=NORMAL)
-        imgCanvas.grid_forget()
-        imgCanvas.config(width=imgdict[imgcount]['img'].shape[1])
-        imgCanvas.config(height=imgdict[imgcount]['img'].shape[0])     
-        imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-        imgCanvas.grid(row=0, column=0, columnspan=2)
+            imgCanvas.config(width=imgdict[imgcount]['img'].shape[1])
+            imgCanvas.config(height=imgdict[imgcount]['img'].shape[0])
+            imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+            imgCanvas.grid(row=0, column=0, columnspan=2)
+            if not inds[imgcount]:
+                lblButt.config(state=DISABLED)
+                lblIndsButt.config(state=DISABLED)
+            else:
+                lblButt.config(state=NORMAL)
+                lblIndsButt.config(state=NORMAL)
         helpStatus.config(text="Image %d of %d."%(imgcount+1, len(lims)))
-        if imgcount == 0:
-            prevButt.config(state=DISABLED)
-        else:
-            prevButt.config(state=NORMAL)
         nextButt.config(text="Next Image")
         nextButt.config(command=nextImg)
         prevButt.config(text="Previous Image")
         prevButt.config(command=backImg)
         __selMode("BB")
-        __refreshImg()
-#video functionality
-def vidCap(vidpath):
-    cap = cv2.VideoCapture(vidpath)
-    print("Success opening %s: %s"%(vidpath, cap.isOpened()))
-    
+        __refresh_bb()
+    if imgcount == 0:
+        prevButt.config(state=DISABLED)
+    else:
+        prevButt.config(state=NORMAL)
 
+'''Video Functionality:'''
+#setup for video functionality
+def __setVid():
+    for wid in imgFrame.winfo_children():
+        wid.grid_forget()    
+    vidLabel.grid(row=0, column=0, sticky="nsew", columnspan=4)
+    sliderFrame.grid(row=1, column=0, sticky="nsew", columnspan=4)
+    buttFrame.grid(row=2, column=0, sticky="nsew", columnspan=4)
+    timeSld.grid(row=0, column=0, sticky=W+E, columnspan=4)
+    revButt.grid(row=0, column=0, sticky="nsew")
+    prevFrameButt.grid(row=0, column=1, sticky="nsew")
+    nextFrameButt.grid(row=0, column=2, sticky="nsew")
+    playButt.grid(row=0, column=3, sticky="nsew")               
+#next video frame
+def nextFrame():
+    global n_im
+    if n_im == 0:
+        prevFrameButt.config(state=NORMAL)
+        revButt.config(state=NORMAL)
+    elif n_im == total - 2: 
+        nextFrameButt.config(state=DISABLED)
+        playButt.config(state=DISABLED)
+        if pFlag:
+            togPlay()
+    n_im += 1
+    fVar.set(n_im)
+    vidLabel.config(image=images[imgcount][n_im]) #displaying image
+#previous video frame        
+def prevFrame():
+    global n_im
+    if n_im == 1:
+        if rFlag:
+            togRev()
+        prevFrameButt.config(state=DISABLED)
+        revButt.config(state=DISABLED)
+    elif n_im == total - 1:
+        nextFrameButt.config(state=NORMAL)
+        playButt.config(state=NORMAL)
+    n_im -= 1
+    fVar.set(n_im)
+    vidLabel.config(image=images[imgcount][n_im]) #displaying image
+#video time slider
+def selTime(event):
+    global n_im
+    if fVar.get() is not None:
+        n_im = fVar.get()
+        if n_im == 0: #left hand side
+            prevFrameButt.config(state=DISABLED)
+            revButt.config(state=DISABLED)
+        else:
+            prevFrameButt.config(state=NORMAL)
+            revButt.config(state=NORMAL)
+        if n_im != total - 1: #right hand side
+            nextFrameButt.config(text=">|")
+            nextFrameButt.config(command=nextFrame)
+        else:
+            nextFrameButt.config(text="Save & Exit")
+            nextFrameButt.config(command=saveVid)
+        vidLabel.config(image=images[imgcount][n_im])
+    else:
+        print("Couldn't get time point.")
+#toggle play/pause
+def togPlay():
+    global rFlag
+    global pFlag
+    if rFlag and not pFlag: #stop reverse
+        togRev()
+    pFlag = False if pFlag else True #toggle
+    pauseButt.config(command=togPlay)
+    if pFlag: #playing
+        nextFrameButt.grid_forget()
+        prevFrameButt.grid_forget()
+        pauseButt.grid(row=0, column=1, columnspan=2)
+        play()
+    else: #pause
+        pauseButt.grid_forget()
+        prevFrameButt.grid(row=0, column=1)
+        nextFrameButt.grid(row=0, column=2)
+        for t in thrReg:
+            m.after_cancel(t)       
+#toggle reverse/pause
+def togRev():
+    global pFlag
+    global rFlag
+    if pFlag and not rFlag: #stop play
+        togPlay()
+    rFlag = False if rFlag else True
+    pauseButt.config(command=togRev)
+    if rFlag: #reversing
+        nextFrameButt.grid_forget()
+        prevFrameButt.grid_forget()
+        pauseButt.grid(row=0, column=1, columnspan=2)
+        reverse()
+    else: #pause
+        pauseButt.grid_forget()
+        prevFrameButt.grid(row=0, column=1)
+        nextFrameButt.grid(row=0, column=2)
+        for t in thrReg:
+            m.after_cancel(t)             
+def play():
+    global thrReg
+    for i in range(1):
+        nextFrame()
+        thrID = m.after(100, play)
+        if len(thrReg) > 10:
+            for i in range(9, 2, -1):
+                m.after_cancel(thrReg[i])
+                del thrReg[i]
+        thrReg.append(thrID)
+def reverse():
+    global thrReg
+    for i in range(1):
+        prevFrame()
+        thrID = m.after(100, reverse)
+        if len(thrReg) > 10:
+            for i in range(9, 2, -1):
+                m.after_cancel(thrReg[i])
+                del thrReg[i]
+        thrReg.append(thrID)
+    
 '''Bounding Boxes:'''           
 #add BB button
 def add_bb():
+    if isinstance(images[imgcount], list):
+        for wid in imgFrame.winfo_children():
+            wid.grid_forget()
+        imgCanvas.config(width=imgdict[imgcount]['img'][0].shape[1])
+        imgCanvas.config(height=imgdict[imgcount]['img'][0].shape[0])
+        imgCanvas.create_image(0,0, images[imgcount][n_im], anchor=NW)
+        imgCanvas.grid(row=0, column=0)
+        prevButt.grid(row=1, column=0, sticky="nsew")
+        nextButt.grid(row=1, column=1, sticky="nsew")
     imgCanvas.bind('<Button-1>', __start_bb)
     imgCanvas.bind('<ButtonRelease-1>', __save_bb)
     imgCanvas.config(cursor='cross')
@@ -154,7 +316,7 @@ def __draw_bb(event):
     global loc1
     global images
     global imgcount
-    __refreshImg()
+    __refresh_bb()
     csrLoc = (event.x, event.y)
     coords = [loc1[0], loc1[1], csrLoc[0], csrLoc[1]] #can I make this a tuple?
     imgCanvas.create_rectangle(coords, outline="red", fill="", width=3)
@@ -205,16 +367,28 @@ def __del_bb(event):
     del imgdict[imgcount]['lbl'][cBox] #delete individual's labels
     del imgdict[imgcount]['val'][cBox] #delete individual's symptom values
     del inds[imgcount][cBox] #delete inds Tk image
-    __refreshImg()
+    __refresh_bb()
     imgCanvas.config(cursor="")
     addBBButt.config(state=NORMAL)
     helpStatus.config(text="Bounding box deleted.")
 #update image BBs
-def __refreshImg():
+def __refresh_bb():
     imgCanvas.delete('all')
-    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
-    for loc in imgdict[imgcount]['box']:
-        imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
+    if isinstance(images[imgcount], list):
+        imgCanvas.create_image(0, 0, image=images[imgcount][n_im], anchor=NW)
+        for t in range(10,0,-1):
+                try:
+                    if inds[imgcount][n_im-t]:
+                        x = abs(imgdict[imgcount]['box'][n_im][indcount][2] + imgdict[imgcount]['box'][n_im][indcount][0])/2
+                        y = abs(imgdict[imgcount]['box'][n_im][indcount][3] + imgdict[imgcount]['box'][n_im][indcount][1])/2
+                        imgCanvas.create_text(x, y, text="%d"%indcount, anchor=W, font="Purisa")
+                except:
+                    continue
+    else:
+        imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+        for loc in imgdict[imgcount]['box']:
+            imgCanvas.create_rectangle(loc, outline="red", fill="", width=3)
+    #imgCanvas.grid(row=0, column=0)
 
 '''Labels:'''
 #parse labels.txt - Note: user needs to have spaces after "LABEL:" & "INFO:", e.g. "LABEL: "
@@ -482,7 +656,10 @@ def selSld(n):
 def __bnd_inds():
     global imgCanvas
     imgCanvas.grid_forget()
-    imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
+    if isinstance(images[imgcount], list):
+        imgCanvas.create_image(0, 0, image=images[imgcount][n_im], anchor=NW)
+    else:
+        imgCanvas.create_image(0, 0, image=images[imgcount], anchor=NW)
     imgCanvas.grid(row=0, column=0, columnspan=2)
     nextButt.config(command=nextImg)
     prevButt.config(command=backImg)
@@ -540,7 +717,7 @@ def __selMode(mode):
         remBBButt.grid(row=1, column=0, sticky="nsew", pady=60)
         lblIndsButt.grid(row=2, column=0, sticky="nsew", pady=60)
         __bnd_inds()
-        __refreshImg()
+        __refresh_bb()
         helpStatus.config(text="Draw bounding boxes for all individuals then click on \"Label Individuals\".")
     elif mode == "SL":
         lblButt.config(state=NORMAL)
@@ -621,25 +798,60 @@ def __topleft_window(width=750, height=660):
 """INITIAL SETUP:"""
 m = Tk() #main window
 m.title("LabelBot - Dataset Creation GUI")
+m.grid_columnconfigure(1, weight=1)
 #m.iconbitmap(logo.ico)
 cdir = os.getcwd()
-idir = os.path.join(cdir, "labels", "unlabeled_images")#should I keep unlabeled_images??
-lblinfopath = os.path.join(cdir, "labels", "labels.txt")   
+idir = os.path.join(cdir, "labels", "unlabeled_data")
+lblInfoPath = os.path.join(cdir, "labels", "labels.txt")   
 lims = os.listdir(idir) #images files to label
+thrReg = [] #thread register for video
 imgdict, inds = {}, {} #Image Dictionary Attributes: img, box, lbl, val
-images = [] #temporary storage for Tkinter images
+images = [] #storage for Tkinter images
 imgcount, indcount = 0, 0
 for im in lims:
-    img = Image.open(os.path.join(idir, im))
-    w, h = img.size #print("Image #%d initial dimensions: %dx%d"%(imgcount, w, h))
-    if w > h: #scaling images
-        fac = 512/w
-    else:
-        fac = 512/h
-    img = img.resize((int(w*fac),int(h*fac)))
-    imgdict[imgcount] = {"img":np.asarray(img), "box":[], "lbl":[], "val":[]}
-    inds[imgcount] = [] #storage dictionary for individual images
-    images.append(ImageTk.PhotoImage(img)) #should Image.fromarray(imgdict[imgcount]['img']).resize((512, 512)) be used instead of opening?
+    if im.split(".")[-1] == 'mp4' or im.split(".")[-1] == 'mp3':
+        vpath = os.path.join(idir, im)
+        cap = cv2.VideoCapture(vpath)
+        tims = [] #tkinter image list and thread register
+        pFlag, rFlag = False, False #play/reverse booleans
+        if cap.isOpened(): #loading frames
+            print("Opening video at %s"%vpath)
+            total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            ret, im = cap.read()
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(im)
+            w, h = img.size #print("Image #%d initial dimensions: %dx%d"%(imgcount, w, h))
+            if w > h: #scaling images
+                fac = 512/w
+            else:
+                fac = 512/h
+            imgdict[imgcount] = {"img":[], "box":[], "lbl":[], "val":[]}
+            img = img.resize((int(w*fac),int(h*fac)))
+            imgdict[imgcount]['img'].append(img)
+            tims.append(ImageTk.PhotoImage(img))
+            for r in range(total-1):
+                ret, im = cap.read()
+                im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(im)
+                img = img.resize((int(w*fac),int(h*fac)))
+                imgdict[imgcount]['img'].append(img)
+                tims.append(ImageTk.PhotoImage(img))
+            #print("Video Frames: ", len(tims))
+        else:
+            print("Couldn't open video %s at %s"%(im, idir))
+        n_im = 0 #frame counter
+        images.append(tims)
+    else: #assuming image file otherwise 
+        img = Image.open(os.path.join(idir, im))
+        w, h = img.size
+        if w > h:
+            fac = 512/w
+        else:
+            fac = 512/h
+        img = img.resize((int(w*fac),int(h*fac))) #scaling images
+        imgdict[imgcount] = {"img":np.asarray(img), "box":[], "lbl":[], "val":[]}
+        inds[imgcount] = [] #dictionary for individual images
+        images.append(ImageTk.PhotoImage(img))
     imgcount += 1
 imgcount = 0
 loc1, loc2 = (0, 0), (0, 0) #storage containers for cursor locations
@@ -656,20 +868,38 @@ lblButt.grid(row=0, column=1, sticky="nsew")
 #image/labels column configuration
 imgFrame = Frame(m, padx=2)
 imgFrame.grid(row=1, column=0)
+vidLabel = Label(imgFrame)
+imgCanvas = Canvas(imgFrame)
 lblFrame = LabelFrame(m, padx=2)
 lblFrame.grid(row=1, column=1, sticky="nsew")
-m.grid_columnconfigure(1, weight=1)
 lblFrame.grid_columnconfigure(0, weight=1)
-#image canvaas
-imgCanvas = Canvas(imgFrame, width=imgdict[0]['img'].shape[1], height=imgdict[0]['img'].shape[0])
-imgCanvas.create_image(0, 0, image=images[0], anchor=NW)
-imgCanvas.grid(row=0, column=0, columnspan=2)
-#print("Dimensions: ", imgdict[0]['img'].shape)
-#image buttons
+#video time slider
+sliderFrame = Frame(imgFrame)
+sliderFrame.grid_columnconfigure(0, weight=1)
+fVar = IntVar()
+timeSld = Scale(sliderFrame, to=total-1, resolution=1, tickinterval=120, orient=HORIZONTAL, variable=fVar, command=selTime)
+#video buttons
+buttFrame = LabelFrame(imgFrame, text="Button frame")
+for c in range(4):
+    buttFrame.grid_columnconfigure(c, weight=1)
+nextFrameButt = Button(buttFrame, text=">|", padx=15, pady=10, command=nextFrame)
+prevFrameButt = Button(buttFrame, text="|<", padx=15, pady=10, command=prevFrame, state=DISABLED)
+playButt = Button(buttFrame, text=">", padx=15, pady=10, command=togPlay)
+revButt = Button(buttFrame, text="<", padx=15, pady=10, command=togRev, state=DISABLED)
+pauseButt = Button(buttFrame, text="||", padx=30, pady=10)#can this be left as is?
+##image buttons
 prevButt = Button(imgFrame, text="Last Image", state=DISABLED, padx=15, pady=15)
 nextButt = Button(imgFrame, text="Next Image", command=nextImg, padx=15, pady=15)
-prevButt.grid(row=1, column=0, sticky="nsew")
-nextButt.grid(row=1, column=1, sticky="nsew")
+if isinstance(imgdict[0], list): #starting with video
+    vidLabel.config(image=images[0][0])
+    __setVid()
+else: #assuming starting with image
+    imgCanvas.config(width=imgdict[0]['img'].shape[1])
+    imgCanvas.config(height=imgdict[0]['img'].shape[0])
+    imgCanvas.create_image(0, 0, image=images[0], anchor=NW) #width=imgdict[0]['img'].shape[1], height=imgdict[0]['img'].shape[0]
+    imgCanvas.grid(row=0, column=0, columnspan=2)
+    prevButt.grid(row=1, column=0, sticky="nsew")
+    nextButt.grid(row=1, column=1, sticky="nsew")
 #help bar
 helpBar = LabelFrame(imgFrame, text="Help") #image progress and directions displayer
 helpBar.grid(row=2, column=0, columnspan=2, sticky="nsew")
@@ -679,16 +909,14 @@ helpStatus.grid(row=0, column=0, sticky="nsew")
 addBBButt = Button(lblFrame, text="Add Bounding Box", command=add_bb, padx=20, pady=15)
 remBBButt = Button(lblFrame, text="Remove Bounding Box", command=rem_bb, padx=20, pady=15, state=DISABLED)
 lblIndsButt = Button(lblFrame, text="Label Individuals", command=lambda: __selMode("SL"), padx=5, pady=15, state=DISABLED)
+savButt = Button(buttFrame, text="Save Video", padx=15, pady=10, command=lambda:saveVid, state=DISABLED)
 #labels.txt dictionary  
-lbls = __parseLbls(lblinfopath) 
+lbls = __parseLbls(lblInfoPath) 
 #label frame storage
 lFrames, sVars, vVars, nVars = {}, {}, {}, {} 
 #m.resizable(True, True)
 __topleft_window(750, 660)
 __selMode("BB")
-
-vidCap(os.path.join(cdir, "labels", "unlabeled_videos", "HerdingCattleWithaDrone.mp4"))
-
 m.mainloop()
 
 '''Example Image Dictionary Entry:
