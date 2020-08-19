@@ -1,4 +1,4 @@
-## ResearchBot
+## SearchBot
 # A program to facilitate research, meaning Google search + web scraping + content compilation + NLP summarization
 # TODO:
 # check robots.txt for specs
@@ -15,7 +15,7 @@
 # add -s option for selective screencapture
 ##
 
-#pip install bs4, requests, scholarly, html5lib, google, progressbar2, clint, selectolax, warc, spacy, nltk, etc.
+#pip install bs4 requests scholarly html5lib google progressbar2 clint selectolax warc spacy nltk, etc.
 #apt install scrot
 import sys, os, progressbar, time #utilities
 import re, PIL #Regex URL Validation
@@ -47,7 +47,7 @@ def URLV(regex, qry, savepath, toks):
         if not mult and re.match(regex, qry):
             q = input("Your search query is a website, do you want to go straight to the URL?? Default no: ")
             if re.match(q, "no") or not q or re.match(q, "n"): #does this need an escape character?
-                q2 = input("Do you want to only search this site?? Default yes: ")
+                q2 = input("Do you want to stay only on this site?? Default yes: ")
                 if re.match(q2, "yes") or not q2 or re.match(q2, "y"):
                     with open(os.path.join(savepath, "links.txt"), "w") as sp:
                         links = save_results(savepath, qry, toks)
@@ -110,7 +110,6 @@ def save_results(savepath, URL, tokenizers):
     URLpath = os.path.join(savepath, cleanPath(URL)) #makes valid unique directory for each URL
     if not os.path.isdir(URLpath):
         os.mkdir(URLpath)
-    print("Extracting Content...")
     wc, bc, urls, ims = extract_content_from_URL(URL, tokenizers)
     #URLcount += 1
     if len(URL) > 20:
@@ -164,7 +163,8 @@ def extract_content_from_URL(URL, toks):
     links = []
     seenlink = set()
     proxy = next(get_proxies())
-    try:
+    r = ensure_content_length(URL, proxies={"http://": proxy, "https://": proxy}) #ensures the response has a Content-Length header
+    '''try:
         r = ensure_content_length(URL, proxies={"http": proxy, "https": proxy}) #ensures the response has a Content-Length header
         try:
             req = requests.get(robot_url(URL), "HEAD")
@@ -174,7 +174,10 @@ def extract_content_from_URL(URL, toks):
         except:
             pass
     except:
+        print("HTML extraction failed.")
         extract_content_from_URL(URL, toks)#inefficient
+    '''
+    print("Extracting...")
     contentLen = int(r.headers["Content-Length"]) #not same as len(r.raw.read())
     for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(contentLen/1024) + 1): 
         if chunk: 
@@ -279,7 +282,8 @@ if os.path.isdir(storepath): #clear storepath
     shutil.rmtree(storepath)
 os.mkdir(storepath)
 tok_list = ["extract_sentences2", "extract_sentences_smart"]
-testURL = "https://en.wikipedia.org/wiki/Machine_learning"
+#INPUT QUERY HERE!!!
+testURL = "https://www.allrecipes.com/recipe/12974/butternut-squash-soup/?internalSource=previously%20viewed&referringContentType=Homepage&clickId=cardslot%202"#"https://www.cookwithmanali.com/dal-makhani/"
 
 #receive query from command line, e.g. os.system("python3 SearchBot.py quicksort -r 5 -n 15 &")
 psr = argparse.ArgumentParser()
